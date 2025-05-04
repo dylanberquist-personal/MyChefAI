@@ -22,13 +22,16 @@ class GoogleSignInButton extends StatelessWidget {
       },
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
-        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+        foregroundColor: Colors.black87,
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: Color(0xFFD3D3D3)),
         ),
+        elevation: 2,
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.asset(
             'assets/images/google_logo.png',
@@ -39,9 +42,10 @@ class GoogleSignInButton extends StatelessWidget {
           Text(
             'Sign in with Google',
             style: TextStyle(
-              color: Colors.black87,
+              color: Color(0xFF030303),
               fontSize: 16,
-              fontWeight: FontWeight.w500,
+              fontFamily: 'Open Sans',
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
