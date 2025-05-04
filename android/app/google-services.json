@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "388318686296",
+    "project_id": "mychefai",
+    "storage_bucket": "mychefai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:388318686296:android:568ec25b89c81f3011ae2d",
+        "android_client_info": {
+          "package_name": "com.example.mychefai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "388318686296-86dbcelr1ppatn1us2ioks5ttbb3p5gp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mychefai",
+            "certificate_hash": "c43a47bf85fd8d38df9c68ea3f879f51264d5ba9"
+          }
+        },
+        {
+          "client_id": "388318686296-puotuslsovm3e8usqjbqgvt4l5u9dp58.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnLKfv4u7ohKx-hS7ELIp2iAH37Tx2jLo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "388318686296-puotuslsovm3e8usqjbqgvt4l5u9dp58.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "388318686296-qugru583sfc94jnajog094u6etljf4bq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mychefai"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
