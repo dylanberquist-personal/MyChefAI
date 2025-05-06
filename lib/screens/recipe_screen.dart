@@ -43,26 +43,36 @@ class _RecipeScreenState extends State<RecipeScreen> {
     }
   }
 
-  Future<void> _fetchCreatorProfile() async {
-    if (widget.recipe.creator.uid == null || widget.recipe.creator.uid!.isEmpty) {
-      print('Creator UID is null or empty');
-      return;
-    }
+  // lib/screens/recipe_screen.dart - update the _fetchCreatorProfile method
 
-    try {
-      final profile = await _profileService.getProfileById(widget.recipe.creator.uid!);
-      if (profile != null) {
-        print('Fetched profile: ${profile.username}');
-        setState(() {
-          _creatorProfile = profile;
-        });
-      } else {
-        print('Profile not found for user UID: ${widget.recipe.creator.uid}');
-      }
-    } catch (e) {
-      print('Error fetching profile: $e');
-    }
+Future<void> _fetchCreatorProfile() async {
+  if (widget.recipe.creator.uid.isEmpty) {
+    print('Creator UID is null or empty');
+    return;
   }
+
+  try {
+    final profile = await _profileService.getProfileById(widget.recipe.creator.uid);
+    if (profile != null) {
+      print('Fetched profile: ${profile.username}');
+      setState(() {
+        _creatorProfile = profile;
+      });
+    } else {
+      // If we can't fetch the profile from Firestore, use the embedded creator data
+      setState(() {
+        _creatorProfile = widget.recipe.creator;
+      });
+      print('Using embedded creator profile: ${widget.recipe.creator.username}');
+    }
+  } catch (e) {
+    print('Error fetching profile: $e');
+    // If there's an error, fall back to using the embedded creator data
+    setState(() {
+      _creatorProfile = widget.recipe.creator;
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {

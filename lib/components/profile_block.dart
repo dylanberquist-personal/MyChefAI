@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/profile.dart'; // Import the Profile model
-import '../screens/profile_screen.dart'; // Import the ProfileScreen
+import '../models/profile.dart';
+import '../screens/profile_screen.dart';
+import '../services/profile_service.dart';
 
 class ProfileBlock extends StatefulWidget {
   final Profile profile;
@@ -12,19 +13,73 @@ class ProfileBlock extends StatefulWidget {
 }
 
 class _ProfileBlockState extends State<ProfileBlock> {
-  bool _isFollowing = false; // Track follow state locally
+  bool _isFollowing = false;
+  final ProfileService _profileService = ProfileService();
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _isFollowing = widget.profile.isFollowing; // Initialize follow state
+    _getCurrentUser();
   }
 
-  // Toggle follow state (local only)
-  void _toggleFollow() {
+  Future<void> _getCurrentUser() async {
+    _currentUserId = await _profileService.getCurrentUserId();
+    if (_currentUserId != null && mounted) {
+      await _checkFollowStatus();
+    }
+  }
+
+  Future<void> _checkFollowStatus() async {
+    if (_currentUserId == null || _currentUserId == widget.profile.uid) return;
+    
+    try {
+      bool isFollowing = await _profileService.checkIfFollowing(widget.profile.uid);
+      if (mounted) {
+        setState(() {
+          _isFollowing = isFollowing;
+        });
+      }
+    } catch (e) {
+      print('Error checking follow status: $e');
+    }
+  }
+
+  // Toggle follow state and update in Firestore
+  Future<void> _toggleFollow() async {
+    if (_currentUserId == null) return;
+    
+    // Don't allow following yourself
+    if (_currentUserId == widget.profile.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You cannot follow yourself')),
+      );
+      return;
+    }
+
+    // Optimistically update UI immediately
     setState(() {
       _isFollowing = !_isFollowing;
     });
+
+    try {
+      if (_isFollowing) {
+        // Follow the user
+        await _profileService.followUser(_currentUserId!, widget.profile.uid);
+      } else {
+        // Unfollow the user
+        await _profileService.unfollowUser(_currentUserId!, widget.profile.uid);
+      }
+    } catch (e) {
+      // Revert state if operation fails
+      setState(() {
+        _isFollowing = !_isFollowing;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
   @override
@@ -35,9 +90,12 @@ class _ProfileBlockState extends State<ProfileBlock> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ProfileScreen(userId: widget.profile.uid), // Use uid instead of id
+            builder: (context) => ProfileScreen(userId: widget.profile.uid),
           ),
-        );
+        ).then((_) {
+          // Refresh follow status when returning from profile screen
+          _checkFollowStatus();
+        });
       },
       child: Container(
         padding: EdgeInsets.all(16),
@@ -102,37 +160,38 @@ class _ProfileBlockState extends State<ProfileBlock> {
                 ],
               ),
             ),
-            // Follow Button
-            ElevatedButton(
-              onPressed: _toggleFollow, // Use the local toggle function
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isFollowing ? Colors.grey[300] : Color(0xFFFFFFC1),
-                foregroundColor: Colors.black,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+            // Follow Button - Only show if we have current user ID and not own profile
+            if (_currentUserId != null && _currentUserId != widget.profile.uid)
+              ElevatedButton(
+                onPressed: _toggleFollow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isFollowing ? Colors.grey[300] : Color(0xFFFFFFC1),
+                  foregroundColor: Colors.black,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  elevation: 2,
                 ),
-                elevation: 2,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _isFollowing ? Icons.check : Icons.add,
-                    size: 18,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    _isFollowing ? 'Followed' : 'Follow',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w700,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isFollowing ? Icons.check : Icons.add,
+                      size: 18,
                     ),
-                  ),
-                ],
+                    SizedBox(width: 4),
+                    Text(
+                      _isFollowing ? 'Followed' : 'Follow',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

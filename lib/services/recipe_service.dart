@@ -74,6 +74,24 @@ Future<void> updateRecipe(Recipe recipe) async {
   await _firestore.collection('recipes').doc(recipe.id).update(recipe.toMap());
 }
 
+// Get recent recipes with a limit
+Future<List<Recipe>> getRecentRecipes(int limit) async {
+  try {
+    QuerySnapshot snapshot = await _firestore
+        .collection('recipes')
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  } catch (e) {
+    print('Error fetching recent recipes: $e');
+    return [];
+  }
+}
+
 // Delete a Recipe
 Future<void> deleteRecipe(String id) async {
   await _firestore.collection('recipes').doc(id).delete();

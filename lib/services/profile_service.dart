@@ -1,12 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/profile.dart';
 import '../models/recipe.dart';
 import 'recipe_service.dart';
 
 class ProfileService {
   final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   ProfileService() : _firestore = FirebaseFirestore.instance;
+
+  // Get the current user's ID
+  Future<String?> getCurrentUserId() async {
+    return _auth.currentUser?.uid;
+  }
 
   // Save a Profile to Firestore
   Future<void> saveProfile(Profile profile) async {
@@ -61,23 +68,77 @@ class ProfileService {
   }
 
   // Follow a User
-  Future<void> followUser(String followerId, String followingId) async {
-    await _firestore.collection('profiles').doc(followerId).update({
+Future<void> followUser(String followerId, String followingId) async {
+  try {
+    // Begin a batch operation for atomic updates
+    WriteBatch batch = _firestore.batch();
+    
+    // Get references to both profiles
+    DocumentReference followerRef = _firestore.collection('profiles').doc(followerId);
+    DocumentReference followingRef = _firestore.collection('profiles').doc(followingId);
+    
+    // Update follower's "following" list
+    batch.update(followerRef, {
       'following': FieldValue.arrayUnion([followingId]),
     });
-    await _firestore.collection('profiles').doc(followingId).update({
+    
+    // Update following user's followers list and increment count
+    batch.update(followingRef, {
       'followers': FieldValue.arrayUnion([followerId]),
+      'followerCount': FieldValue.increment(1), // Use increment operation
     });
+    
+    // Commit the batch
+    await batch.commit();
+    
+    print('Successfully followed user: $followingId');
+  } catch (e) {
+    print('Error following user: $e');
+    throw e;
   }
+}
 
-  // Unfollow a User
-  Future<void> unfollowUser(String followerId, String followingId) async {
-    await _firestore.collection('profiles').doc(followerId).update({
+// Unfollow a User
+Future<void> unfollowUser(String followerId, String followingId) async {
+  try {
+    // Begin a batch operation for atomic updates
+    WriteBatch batch = _firestore.batch();
+    
+    // Get references to both profiles
+    DocumentReference followerRef = _firestore.collection('profiles').doc(followerId);
+    DocumentReference followingRef = _firestore.collection('profiles').doc(followingId);
+    
+    // Update follower's "following" list
+    batch.update(followerRef, {
       'following': FieldValue.arrayRemove([followingId]),
     });
-    await _firestore.collection('profiles').doc(followingId).update({
+    
+    // Update following user's followers list and decrement count
+    batch.update(followingRef, {
       'followers': FieldValue.arrayRemove([followerId]),
+      'followerCount': FieldValue.increment(-1), // Use increment operation
     });
+    
+    // Commit the batch
+    await batch.commit();
+    
+    print('Successfully unfollowed user: $followingId');
+  } catch (e) {
+    print('Error unfollowing user: $e');
+    throw e;
+  }
+}
+
+  // Check if current user follows a specific user
+  Future<bool> checkIfFollowing(String targetUserId) async {
+    String? currentUserId = await getCurrentUserId();
+    if (currentUserId == null) return false;
+    
+    DocumentSnapshot doc = await _firestore.collection('profiles').doc(currentUserId).get();
+    if (!doc.exists) return false;
+    
+    List<dynamic> following = (doc.data() as Map<String, dynamic>)['following'] ?? [];
+    return following.contains(targetUserId);
   }
 
   // Fetch Followers

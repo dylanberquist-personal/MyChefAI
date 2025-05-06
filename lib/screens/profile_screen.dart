@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import '../models/profile.dart';
 import '../models/recipe.dart';
@@ -87,14 +88,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _aboutController.text = profile.description;
           _locationController.text = profile.region ?? '';
           _dietaryController.text = profile.dietaryRestrictions;
+          _isLoading = false; // Make sure we set loading to false when we have data
         });
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false; // Set loading to false even if no profile found
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Profile not found')),
+          );
+          Navigator.pop(context); // Navigate back if profile not found
+        }
       }
     } catch (e) {
       print('Error fetching profile: $e');
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLoading = false; // Make sure to set loading to false on error
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading profile: ${e.toString()}')),
+        );
+        Navigator.pop(context); // Navigate back on error
       }
     }
   }
@@ -122,11 +138,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_currentUserId == null || _currentUserId == widget.userId) return;
     
     try {
-      final following = await _profileService.getFollowing(_currentUserId!);
+      _isFollowing = await _profileService.checkIfFollowing(widget.userId);
       if (mounted) {
-        setState(() {
-          _isFollowing = following.any((p) => p.id == widget.userId);
-        });
+        setState(() {});
       }
     } catch (e) {
       print('Error checking follow status: $e');
@@ -134,23 +148,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchFollowerCount() async {
-    try {
-      final followers = await _profileService.getFollowers(widget.userId);
-      if (mounted) {
+  try {
+    DocumentSnapshot doc = await FirebaseFirestore.instance
+        .collection('profiles')
+        .doc(widget.userId)
+        .get();
+    
+    if (mounted && doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      
+      // First try to get followerCount directly
+      if (data.containsKey('followerCount') && data['followerCount'] != null) {
+        var count = data['followerCount'];
         setState(() {
+          if (count is int) {
+            _followerCount = count;
+          } else if (count is double) {
+            _followerCount = count.toInt();
+          } else if (count is String && int.tryParse(count) != null) {
+            _followerCount = int.parse(count);
+          } else {
+            // If followerCount is invalid, fallback to counting the followers array
+            List<dynamic> followers = data['followers'] ?? [];
+            _followerCount = followers.length;
+          }
+        });
+      } else {
+        // If followerCount doesn't exist, fallback to counting the followers array
+        setState(() {
+          List<dynamic> followers = data['followers'] ?? [];
           _followerCount = followers.length;
         });
       }
-    } catch (e) {
-      print('Error fetching followers: $e');
+      
+      print('Fetched follower count: $_followerCount for user ${widget.userId}');
     }
+  } catch (e) {
+    print('Error fetching follower count: $e');
   }
+}
 
-  void _toggleFollow() {
+  Future<void> _toggleFollow() async {
+    if (_currentUserId == null) return;
+    
+    // Optimistically update UI
     setState(() {
       _isFollowing = !_isFollowing;
       _followerCount += _isFollowing ? 1 : -1;
     });
+    
+    try {
+      if (_isFollowing) {
+        await _profileService.followUser(_currentUserId!, widget.userId);
+      } else {
+        await _profileService.unfollowUser(_currentUserId!, widget.userId);
+      }
+      // Refresh follower count to ensure accuracy
+      await _fetchFollowerCount();
+    } catch (e) {
+      // Revert UI changes if operation failed
+      setState(() {
+        _isFollowing = !_isFollowing;
+        _followerCount += _isFollowing ? 1 : -1;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _pickImage() async {
@@ -214,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profilePicture: imageUrl,
         email: _profile!.email,
         description: _aboutController.text,
-        topRecipe: _profile!.topRecipe,
+        topRecipeId: _profile!.topRecipeId, // Changed from topRecipe
         region: _locationController.text.isNotEmpty ? _locationController.text : null,
         chefScore: _profile!.chefScore,
         numberOfReviews: _profile!.numberOfReviews,
@@ -223,6 +288,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         myFavorites: _profile!.myFavorites,
         isFollowing: _profile!.isFollowing,
         followers: _profile!.followers,
+        following: _profile!.following,
+        followerCount: _profile!.followerCount,
       );
 
       await _profileService.updateProfile(updatedProfile);
@@ -258,7 +325,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profilePicture: _profile!.profilePicture,
         email: _profile!.email,
         description: _aboutController.text,
-        topRecipe: _profile!.topRecipe,
+        topRecipeId: _profile!.topRecipeId, // Changed from topRecipe
         region: _locationController.text.isNotEmpty ? _locationController.text : null,
         chefScore: _profile!.chefScore,
         numberOfReviews: _profile!.numberOfReviews,
@@ -267,6 +334,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         myFavorites: _profile!.myFavorites,
         isFollowing: _profile!.isFollowing,
         followers: _profile!.followers,
+        following: _profile!.following,
+        followerCount: _profile!.followerCount,
       );
 
       await _profileService.updateProfile(updatedProfile);

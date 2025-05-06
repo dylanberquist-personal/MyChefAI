@@ -3,16 +3,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/onboarding_screen.dart'; // Import OnboardingScreen
+import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/profile_service.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
   runApp(MyApp());
 }
 
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
           } else if (snapshot.hasData) {
             // User is signed in, check if profile exists
             return FutureBuilder(
-              future: _profileService.getProfileById(snapshot.data!.uid), // Use getProfileById
+              future: _profileService.getProfileById(snapshot.data!.uid),
               builder: (context, profileSnapshot) {
                 if (profileSnapshot.connectionState == ConnectionState.waiting) {
                   return CircularProgressIndicator(); // Show loading indicator
