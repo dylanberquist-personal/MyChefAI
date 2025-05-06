@@ -141,6 +141,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Define spacing constants here directly in the build method
+    const double sectionSpacing = 32.0; // Space between sections
+    const double headerToContentSpacing = 20.0; // Consistent 20px spacing between all headers and content
+    const double feedItemSpacing = 8.0; // Spacing between recipe blocks in feed
+    const double chefProfileSpacing = 8.0; // Spacing between profile blocks
+    const double contentSpacing = 16.0; // Regular content spacing (for loading indicators, etc.)
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
@@ -181,26 +188,26 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // Featured Recipe Header
           SliverToBoxAdapter(
-            child: const Padding(
-              padding: EdgeInsets.only(top: 32, left: 24, right: 24),
+            child: Padding(
+              padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
               child: HeaderText(text: 'Featured recipe'),
             ),
           ),
           
-          // Featured Recipe Block
+          // Featured Recipe Block - Exact 20px from header
           SliverToBoxAdapter(
             child: _isLoadingFeatured
-              ? const Padding(
-                  padding: EdgeInsets.all(16.0),
+              ? Padding(
+                  padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                   child: Center(child: CircularProgressIndicator()),
                 )
               : _featuredRecipe == null
-                ? const Padding(
-                    padding: EdgeInsets.all(16.0),
+                ? Padding(
+                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                     child: Center(child: Text('No featured recipe found.')),
                   )
                 : Padding(
-                    padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
+                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                     child: RecipeBlock(
                       key: ValueKey('featured_${_featuredRecipe!.id}'),
                       recipe: _featuredRecipe!
@@ -211,11 +218,11 @@ class _HomeScreenState extends State<HomeScreen> {
           // Recipe Feed Header
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(top: 32, left: 24, right: 24),
+              padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const HeaderText(text: 'Recipe feed'),
+                  HeaderText(text: 'Recipe feed'),
                   ElevatedButton(
                     onPressed: () {
                       // Add button functionality
@@ -245,18 +252,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           
-          // Recipe Feed Preview
+          // Recipe Feed Preview - Exact 20px from header and 8px between items
           _isLoadingRecent
             ? SliverToBoxAdapter(
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
+                child: Padding(
+                  padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                   child: Center(child: CircularProgressIndicator()),
                 ),
               )
             : _recentRecipes.isEmpty
               ? SliverToBoxAdapter(
-                  child: const Padding(
-                    padding: EdgeInsets.all(16.0),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                     child: Center(child: Text('No recipes found.')),
                   ),
                 )
@@ -264,7 +271,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       return Padding(
-                        padding: const EdgeInsets.only(top: 16, left: 24, right: 24),
+                        padding: EdgeInsets.only(
+                          top: index == 0 ? headerToContentSpacing : feedItemSpacing, 
+                          left: 24, 
+                          right: 24
+                        ),
                         child: RecipeBlock(
                           key: ValueKey('recipe_${_recentRecipes[index].id}'),
                           recipe: _recentRecipes[index],
@@ -277,24 +288,24 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // Top Chefs Header
           SliverToBoxAdapter(
-            child: const Padding(
-              padding: EdgeInsets.only(top: 32, left: 24, right: 24),
+            child: Padding(
+              padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
               child: HeaderText(text: 'Top chefs leaderboard'),
             ),
           ),
           
-          // Top Chefs Leaderboard
+          // Top Chefs Leaderboard - Exact 20px from header and reduced spacing between items
           _isLoadingChefs
             ? SliverToBoxAdapter(
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
+                child: Padding(
+                  padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                   child: Center(child: CircularProgressIndicator()),
                 ),
               )
             : _topChefs.isEmpty
               ? SliverToBoxAdapter(
-                  child: const Padding(
-                    padding: EdgeInsets.all(16.0),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
                     child: Center(child: Text('No top chefs found.')),
                   ),
                 )
@@ -302,7 +313,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       return Padding(
-                        padding: const EdgeInsets.only(left: 24, right: 24, bottom: 6),
+                        padding: EdgeInsets.only(
+                          top: index == 0 ? headerToContentSpacing : chefProfileSpacing, 
+                          left: 24, 
+                          right: 24
+                        ),
                         child: Stack(
                           children: [
                             ProfileBlock(
@@ -340,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // Bottom Padding
           SliverToBoxAdapter(
-            child: const SizedBox(height: 24),
+            child: SizedBox(height: 24),
           ),
         ],
       ),

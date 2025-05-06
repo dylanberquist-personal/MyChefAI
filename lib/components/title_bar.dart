@@ -60,6 +60,16 @@ class TitleBar extends StatelessWidget {
                   ),
                 ),
               ),
+              // Chef Guy Logo - aligned with the bottom of the MyChefAI text
+              Positioned(
+                right: 24,
+                bottom: 16, // Match the bottom position of the title text
+                child: Image.asset(
+                  'assets/images/mychefai_guy.png',
+                  height: 60,
+                  fit: BoxFit.contain,
+                ),
+              ),
               // Profile Icon (Top Right)
               Positioned(
                 right: 16,

@@ -77,7 +77,7 @@ class _RecipeBlockState extends State<RecipeBlock> {
           borderRadius: BorderRadius.circular(16),
         ),
         color: Colors.white,
-        margin: EdgeInsets.only(top: 16),
+        margin: EdgeInsets.zero, // Removed top margin
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
