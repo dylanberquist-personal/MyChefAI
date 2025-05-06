@@ -14,6 +14,8 @@ import '../components/footer_nav_bar.dart';
 import '../services/auth_service.dart';
 import '../components/text_card.dart';
 import '../services/storage_service.dart';
+import 'favorite_recipes_screen.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -44,6 +46,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditingAbout = false;
   bool _isEditingLocation = false;
   bool _isEditingDietary = false;
+
+  // Consistent spacing measurements
+  final double _sectionSpacing = 24.0;
+  final double _contentSpacing = 12.0;
 
   @override
   void initState() {
@@ -347,6 +353,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _signOut() async {
+    try {
+      await _authService.signOut();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error signing out: ${e.toString()}')),
+      );
+    }
+  }
+
   Widget _buildEditableSection({
     required String title,
     required TextEditingController controller,
@@ -373,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
           ],
         ),
-        SizedBox(height: 12),
+        SizedBox(height: _contentSpacing),
         TextCard(
           child: Padding(
             padding: EdgeInsets.all(16),
@@ -399,7 +422,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
           ),
         ),
-        SizedBox(height: 24),
+        SizedBox(height: _sectionSpacing),
       ],
     );
   }
@@ -597,7 +620,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       HeaderText(text: 'Chef Rating'),
-                      SizedBox(height: 12),
+                      SizedBox(height: _contentSpacing),
                       TextCard(
                         child: Padding(
                           padding: EdgeInsets.all(16),
@@ -616,9 +639,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 24),
+                      SizedBox(height: _sectionSpacing),
                     ],
                   ),
+                  
+                  // Add Favorites Button (only visible on your own profile)
+                  if (isOwnProfile) 
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        HeaderText(text: 'My Favorites'),
+                        SizedBox(height: _contentSpacing),
+                        Container(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => FavoriteRecipesScreen(userId: _currentUserId!),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                side: BorderSide(color: Colors.black),
+                              ),
+                              elevation: 2,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.favorite, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text(
+                                  'See my favorites',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontFamily: 'Open Sans',
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: _sectionSpacing),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -638,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Positioned(
                           right: 0,
                           child: Text(
-                            '${_recipes.length} recipes',
+                            '${_recipes.length} ${_recipes.length == 1 ? 'recipe' : 'recipes'}',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
@@ -648,7 +720,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: _contentSpacing),
                   if (_recipes.isEmpty)
                     Center(
                       child: Text(
@@ -666,10 +738,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: RecipeBlock(recipe: r),
                       )).toList(),
                     ),
-                  SizedBox(height: 24),
+                  SizedBox(height: _sectionSpacing),
                 ],
               ),
             ),
+            
+            // Sign Out Button (only visible on your own profile)
+            if (isOwnProfile)
+              Column(
+                children: [
+                  SizedBox(height: _contentSpacing),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: ElevatedButton(
+                      onPressed: _signOut,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.red,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          side: BorderSide(color: Colors.red),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text(
+                            'Sign Out',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Open Sans',
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: _sectionSpacing),
+                ],
+              ),
           ],
         ),
       ),

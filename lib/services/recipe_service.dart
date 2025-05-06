@@ -113,4 +113,91 @@ Future<Recipe?> getRandomRecipe() async {
     return null;
   }
 }
+
+// Toggle favorite status for a recipe
+Future<void> toggleFavorite(String recipeId, String userId) async {
+  try {
+    // Get the recipe
+    DocumentSnapshot recipeDoc = await _firestore.collection('recipes').doc(recipeId).get();
+    
+    // Get the user profile
+    DocumentSnapshot profileDoc = await _firestore.collection('profiles').doc(userId).get();
+    
+    if (!recipeDoc.exists || !profileDoc.exists) {
+      throw 'Recipe or profile not found';
+    }
+    
+    // Check if recipe is already favorited
+    List<String> favorites = List<String>.from(profileDoc['myFavorites'] ?? []);
+    bool isFavorited = favorites.contains(recipeId);
+    
+    // Use a batch to update both documents atomically
+    WriteBatch batch = _firestore.batch();
+    
+    // Update profile favorites
+    if (isFavorited) {
+      // Remove from favorites
+      batch.update(
+        _firestore.collection('profiles').doc(userId),
+        {'myFavorites': FieldValue.arrayRemove([recipeId])}
+      );
+      
+      // Decrement favorite count
+      batch.update(
+        _firestore.collection('recipes').doc(recipeId),
+        {'numberOfFavorites': FieldValue.increment(-1)}
+      );
+    } else {
+      // Add to favorites
+      batch.update(
+        _firestore.collection('profiles').doc(userId),
+        {'myFavorites': FieldValue.arrayUnion([recipeId])}
+      );
+      
+      // Increment favorite count
+      batch.update(
+        _firestore.collection('recipes').doc(recipeId),
+        {'numberOfFavorites': FieldValue.increment(1)}
+      );
+    }
+    
+    // Commit the batch
+    await batch.commit();
+    
+  } catch (e) {
+    print('Error toggling favorite: $e');
+    throw e;
+  }
+}
+
+// Check if a recipe is favorited by the current user
+Future<bool> isRecipeFavorited(String recipeId, String userId) async {
+  try {
+    DocumentSnapshot profileDoc = await _firestore.collection('profiles').doc(userId).get();
+    
+    if (!profileDoc.exists) {
+      return false;
+    }
+    
+    List<String> favorites = List<String>.from(profileDoc['myFavorites'] ?? []);
+    return favorites.contains(recipeId);
+  } catch (e) {
+    print('Error checking favorite status: $e');
+    return false;
+  }
+}
+
+// Get updated recipe with latest favorite count
+Future<Recipe?> getUpdatedRecipe(String recipeId) async {
+  try {
+    final doc = await _firestore.collection('recipes').doc(recipeId).get();
+    if (doc.exists) {
+      return Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    }
+    return null;
+  } catch (e) {
+    print('Error fetching updated recipe: $e');
+    return null;
+  }
+}
 }

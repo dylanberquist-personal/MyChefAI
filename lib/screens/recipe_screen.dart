@@ -9,6 +9,7 @@ import '../components/footer_nav_bar.dart';
 import '../components/header_text.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
+import '../services/recipe_service.dart';
 import '../screens/profile_screen.dart';
 
 class RecipeScreen extends StatefulWidget {
@@ -24,65 +25,157 @@ class _RecipeScreenState extends State<RecipeScreen> {
   bool isFavorited = false;
   final AuthService _authService = AuthService();
   final ProfileService _profileService = ProfileService();
+  final RecipeService _recipeService = RecipeService();
   String? _currentUserId;
   Profile? _creatorProfile;
-
+  bool _isLoading = true;
+  late Recipe _currentRecipe;
+  
   @override
   void initState() {
     super.initState();
+    // Create a copy of the recipe to work with
+    _currentRecipe = widget.recipe;
     _fetchCurrentUser();
     _fetchCreatorProfile();
+    _refreshRecipeData();
+  }
+  
+  // Fetch the latest recipe data
+  Future<void> _refreshRecipeData() async {
+    if (_currentRecipe.id == null) return;
+    
+    try {
+      final updatedRecipe = await _recipeService.getUpdatedRecipe(_currentRecipe.id!);
+      if (updatedRecipe != null && mounted) {
+        setState(() {
+          _currentRecipe = updatedRecipe;
+        });
+      }
+    } catch (e) {
+      print('Error refreshing recipe data: $e');
+    }
   }
 
   Future<void> _fetchCurrentUser() async {
     final user = await _authService.getCurrentUser();
     if (user != null) {
+      final userId = user.uid;
       setState(() {
-        _currentUserId = user.uid;
+        _currentUserId = userId;
       });
-    }
-  }
-
-  // lib/screens/recipe_screen.dart - update the _fetchCreatorProfile method
-
-Future<void> _fetchCreatorProfile() async {
-  if (widget.recipe.creator.uid.isEmpty) {
-    print('Creator UID is null or empty');
-    return;
-  }
-
-  try {
-    final profile = await _profileService.getProfileById(widget.recipe.creator.uid);
-    if (profile != null) {
-      print('Fetched profile: ${profile.username}');
-      setState(() {
-        _creatorProfile = profile;
-      });
+      
+      // Check if this recipe is favorited by the current user
+      if (_currentRecipe.id != null) {
+        final favorited = await _recipeService.isRecipeFavorited(
+          _currentRecipe.id!,
+          userId,
+        );
+        
+        if (mounted) {
+          setState(() {
+            isFavorited = favorited;
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } else {
-      // If we can't fetch the profile from Firestore, use the embedded creator data
       setState(() {
-        _creatorProfile = widget.recipe.creator;
+        _isLoading = false;
       });
-      print('Using embedded creator profile: ${widget.recipe.creator.username}');
     }
-  } catch (e) {
-    print('Error fetching profile: $e');
-    // If there's an error, fall back to using the embedded creator data
-    setState(() {
-      _creatorProfile = widget.recipe.creator;
-    });
   }
-}
+
+  Future<void> _fetchCreatorProfile() async {
+    if (_currentRecipe.creator.uid.isEmpty) {
+      print('Creator UID is null or empty');
+      return;
+    }
+
+    try {
+      final profile = await _profileService.getProfileById(_currentRecipe.creator.uid);
+      if (profile != null) {
+        print('Fetched profile: ${profile.username}');
+        setState(() {
+          _creatorProfile = profile;
+        });
+      } else {
+        // If we can't fetch the profile from Firestore, use the embedded creator data
+        setState(() {
+          _creatorProfile = _currentRecipe.creator;
+        });
+        print('Using embedded creator profile: ${_currentRecipe.creator.username}');
+      }
+    } catch (e) {
+      print('Error fetching profile: $e');
+      // If there's an error, fall back to using the embedded creator data
+      setState(() {
+        _creatorProfile = _currentRecipe.creator;
+      });
+    }
+  }
+
+  // Method to toggle favorite status
+  Future<void> _toggleFavorite() async {
+    if (_currentUserId == null || _currentRecipe.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You need to be logged in to favorite recipes')),
+      );
+      return;
+    }
+
+    // Optimistically update UI
+    setState(() {
+      isFavorited = !isFavorited;
+      _currentRecipe.numberOfFavorites += isFavorited ? 1 : -1;
+    });
+
+    try {
+      await _recipeService.toggleFavorite(_currentRecipe.id!, _currentUserId!);
+      // After toggling, refresh the recipe data from the server
+      await _refreshRecipeData();
+    } catch (e) {
+      // Revert if operation fails
+      setState(() {
+        isFavorited = !isFavorited;
+        _currentRecipe.numberOfFavorites += isFavorited ? 1 : -1;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.black),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: RecipeTitleBar(
-        title: widget.recipe.title,
+        title: _currentRecipe.title,
         isFavorited: isFavorited,
         onBackPressed: () => Navigator.pop(context),
-        onFavoritePressed: () => setState(() => isFavorited = !isFavorited),
+        onFavoritePressed: _toggleFavorite,
         onOptionsPressed: () {},
       ),
       body: SingleChildScrollView(
@@ -95,7 +188,7 @@ Future<void> _fetchCreatorProfile() async {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Image.network(
-                  widget.recipe.image ?? 'assets/images/recipe_image_placeholder.png',
+                  _currentRecipe.image ?? 'assets/images/recipe_image_placeholder.png',
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -110,12 +203,33 @@ Future<void> _fetchCreatorProfile() async {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            
+            // Add favorite count display
+            Row(
+              children: [
+                Icon(
+                  Icons.favorite,
+                  color: Colors.red,
+                  size: 24,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  '${_currentRecipe.numberOfFavorites} ${_currentRecipe.numberOfFavorites == 1 ? 'person' : 'people'} favorited this recipe',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Open Sans',
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
 
             // Ingredients Section
             HeaderText(text: 'Ingredients'),
             const SizedBox(height: 8),
-            ...widget.recipe.ingredients.map((ingredient) => Padding(
+            ..._currentRecipe.ingredients.map((ingredient) => Padding(
               padding: const EdgeInsets.only(left: 24),
               child: Text(
                 ingredient,
@@ -130,7 +244,7 @@ Future<void> _fetchCreatorProfile() async {
             // Instructions Section
             HeaderText(text: 'Instructions'),
             const SizedBox(height: 8),
-            ...widget.recipe.instructions.asMap().entries.map((entry) {
+            ..._currentRecipe.instructions.asMap().entries.map((entry) {
               int index = entry.key + 1;
               String step = entry.value;
               return Padding(
@@ -147,13 +261,13 @@ Future<void> _fetchCreatorProfile() async {
             const SizedBox(height: 24),
 
             // Category Tags Section
-            if (widget.recipe.categoryTags.isNotEmpty)
+            if (_currentRecipe.categoryTags.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   HeaderText(text: 'Categories'),
                   const SizedBox(height: 8),
-                  CategoryTags(tags: widget.recipe.categoryTags),
+                  CategoryTags(tags: _currentRecipe.categoryTags),
                 ],
               ),
             const SizedBox(height: 24),
@@ -161,16 +275,16 @@ Future<void> _fetchCreatorProfile() async {
             // Creator Profile Block
             HeaderText(text: 'Created By'),
             const SizedBox(height: 8),
-            if (widget.recipe.creator.uid == null || widget.recipe.creator.uid!.isEmpty)
+            if (_currentRecipe.creator.uid.isEmpty)
               const Center(child: Text('Creator information is missing')),
-            if (widget.recipe.creator.uid != null && widget.recipe.creator.uid!.isNotEmpty)
+            if (_currentRecipe.creator.uid.isNotEmpty)
               if (_creatorProfile != null)
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.zero,
                   child: ProfileBlock(profile: _creatorProfile!),
                 ),
-            if (_creatorProfile == null && widget.recipe.creator.uid != null && widget.recipe.creator.uid!.isNotEmpty)
+            if (_creatorProfile == null && _currentRecipe.creator.uid.isNotEmpty)
               const Center(child: Text('Creator profile not found')),
             const SizedBox(height: 24),
 
