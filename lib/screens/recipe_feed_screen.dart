@@ -127,11 +127,18 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
         _isLoading = true;
       });
 
-      List<Recipe> recipes;
-      if (_showOnlyFollowing && _followingIds.isNotEmpty) {
-        // Get recipes only from followed profiles
-        print('Loading recipes from following: ${_followingIds.length} profiles');
-        recipes = await _recipeService.getRecipesFromFollowing(_followingIds, _limit);
+      List<Recipe> recipes = [];
+      
+      if (_showOnlyFollowing) {
+        // If showing only following but not following anyone, show empty list
+        if (_followingIds.isEmpty) {
+          print('Following list is empty, showing no recipes in Following mode');
+          // Just leave recipes as an empty list
+        } else {
+          // Get recipes only from followed profiles
+          print('Loading recipes from following: ${_followingIds.length} profiles');
+          recipes = await _recipeService.getRecipesFromFollowing(_followingIds, _limit);
+        }
       } else {
         // Get all recent recipes
         print('Loading all recent recipes');
@@ -170,14 +177,20 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
         _isLoadingMore = true;
       });
       
-      List<Recipe> moreRecipes;
-      if (_showOnlyFollowing && _followingIds.isNotEmpty) {
-        // Get more recipes only from followed profiles
-        moreRecipes = await _recipeService.getMoreRecipesFromFollowing(
-          _followingIds, 
-          _limit, 
-          _lastRecipe?.createdAt
-        );
+      List<Recipe> moreRecipes = [];
+      
+      if (_showOnlyFollowing) {
+        // If showing only following but not following anyone, return empty list
+        if (_followingIds.isEmpty) {
+          // Just leave moreRecipes as an empty list
+        } else {
+          // Get more recipes only from followed profiles
+          moreRecipes = await _recipeService.getMoreRecipesFromFollowing(
+            _followingIds, 
+            _limit, 
+            _lastRecipe?.createdAt
+          );
+        }
       } else {
         // Get more recent recipes from all profiles
         moreRecipes = await _recipeService.getMoreRecentRecipes(
@@ -209,11 +222,14 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
   }
   
   Future<void> _refreshRecipes() async {
+    // First, re-fetch the following list in case it changed
+    await _fetchFollowing();
+    
     // Reset pagination parameters
     _hasMoreRecipes = true;
     _lastRecipe = null;
     
-    await _loadInitialRecipes();
+    // Then load the recipes - this is already called at the end of _fetchFollowing()
   }
   
   void _toggleShowFollowing() {
@@ -320,59 +336,81 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
           _navigateToProfile();
         }
       },
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _recipes.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      body: RefreshIndicator(
+        onRefresh: _refreshRecipes,
+        child: _isLoading
+            ? ListView(
+                // Make sure we have something to pull down on even during loading
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  Container(
+                    height: MediaQuery.of(context).size.height - 100,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              )
+            : _recipes.isEmpty
+                ? ListView(
+                    // Make sure we have something to pull down on when empty
+                    physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      Icon(
-                        Icons.restaurant_menu,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        _showOnlyFollowing 
-                            ? 'No recipes from profiles you follow' 
-                            : 'No recipes found',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                          fontFamily: 'Open Sans',
-                        ),
-                      ),
-                      if (_showOnlyFollowing)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16.0),
-                          child: TextButton(
-                            onPressed: _toggleShowFollowing,
-                            child: Text(
-                              'Show all recipes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.black,
-                                fontFamily: 'Open Sans',
-                                fontWeight: FontWeight.w600,
+                      Container(
+                        height: MediaQuery.of(context).size.height - 100,
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.restaurant_menu,
+                                size: 64,
+                                color: Colors.grey,
                               ),
-                            ),
-                            style: TextButton.styleFrom(
-                              backgroundColor: Color(0xFFFFFFC1),
-                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
+                              SizedBox(height: 16),
+                              Text(
+                                _showOnlyFollowing 
+                                    ? _followingIds.isEmpty
+                                        ? 'You are not following anyone yet'
+                                        : 'No recipes from profiles you follow'
+                                    : 'No recipes found',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
+                                  fontFamily: 'Open Sans',
+                                ),
                               ),
-                            ),
+                              // Show appropriate action button based on state
+                              if (_showOnlyFollowing)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 16.0),
+                                  child: ElevatedButton(
+                                    onPressed: _toggleShowFollowing,
+                                    style: TextButton.styleFrom(
+                                      backgroundColor: Color(0xFFFFFFC1),
+                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Show all recipes',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.black,
+                                        fontFamily: 'Open Sans',
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
+                      ),
                     ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _refreshRecipes,
-                  child: ListView.builder(
+                  )
+                : ListView.builder(
                     controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.only(
                       top: 16,
                       left: 24,
@@ -397,7 +435,7 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
                       );
                     },
                   ),
-                ),
+      ),
     );
   }
 }
