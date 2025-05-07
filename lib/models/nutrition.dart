@@ -1,3 +1,4 @@
+// lib/models/nutrition.dart
 class Nutrition {
   int numberOfServings;
   int caloriesPerServing;
@@ -18,6 +19,7 @@ class Nutrition {
   double calcium;
   double iron;
   String unit;
+  String servingSize; // Added serving size attribute
 
   Nutrition({
     required this.numberOfServings,
@@ -39,6 +41,7 @@ class Nutrition {
     required this.calcium,
     required this.iron,
     required this.unit,
+    this.servingSize = '', // Default value is empty string
   });
 
   // Convert Nutrition to a Map for Firebase
@@ -63,6 +66,7 @@ class Nutrition {
       'calcium': calcium,
       'iron': iron,
       'unit': unit,
+      'servingSize': servingSize, // Added to map
     };
   }
 
@@ -88,6 +92,7 @@ class Nutrition {
       calcium: data['calcium'],
       iron: data['iron'],
       unit: data['unit'],
+      servingSize: data['servingSize'] ?? '', // Handle case when field doesn't exist in database
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -7,6 +8,7 @@ import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/profile_service.dart';
 import 'navigation/no_animation_page_route.dart';
+import 'models/nutrition.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +16,111 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
+  // Run the migration to add serving size to existing recipes
+  await updateRecipesWithServingSize();
+  
   runApp(MyApp());
+}
+
+Future<void> updateRecipesWithServingSize() async {
+  try {
+    // Get all recipes
+    final recipesSnapshot = await FirebaseFirestore.instance.collection('recipes').get();
+    
+    if (recipesSnapshot.docs.isEmpty) {
+      print('No recipes found to update.');
+      return;
+    }
+    
+    print('Found ${recipesSnapshot.docs.length} recipes to update with serving size.');
+    
+    // Default serving sizes for different recipe types
+    final Map<String, String> defaultServingSizes = {
+      'breakfast': '1 cup (240g)',
+      'lunch': '1 plate (350g)',
+      'dinner': '1 plate (350g)',
+      'dessert': '1 slice (120g)',
+      'snack': '1 portion (100g)',
+      'drink': '1 cup (240ml)',
+      'soup': '1 bowl (250ml)',
+      'salad': '1 bowl (200g)',
+      'appetizer': '1 serving (150g)',
+      'side dish': '1/2 cup (120g)',
+    };
+    
+    // Default serving size if no category matches
+    const String defaultServingSize = '1 serving (200g)';
+    
+    // Batch updates for better performance
+    final batch = FirebaseFirestore.instance.batch();
+    int updateCount = 0;
+    
+    for (final doc in recipesSnapshot.docs) {
+      try {
+        final data = doc.data();
+        
+        // Skip if doesn't have nutritionInfo
+        if (!data.containsKey('nutritionInfo')) {
+          print('Recipe ${doc.id} has no nutritionInfo, skipping.');
+          continue;
+        }
+        
+        final nutritionInfo = data['nutritionInfo'];
+        
+        // Skip if already has servingSize
+        if (nutritionInfo != null && 
+            nutritionInfo is Map && 
+            nutritionInfo.containsKey('servingSize') && 
+            nutritionInfo['servingSize'] != null &&
+            nutritionInfo['servingSize'] != '') {
+          print('Recipe ${doc.id} already has a serving size, skipping.');
+          continue;
+        }
+        
+        // Determine appropriate serving size based on recipe categories
+        String servingSize = defaultServingSize;
+        if (data.containsKey('categoryTags') && data['categoryTags'] is List) {
+          List<dynamic> categories = data['categoryTags'];
+          
+          // Find first matching category
+          for (String category in categories.cast<String>()) {
+            category = category.toLowerCase();
+            if (defaultServingSizes.containsKey(category)) {
+              servingSize = defaultServingSizes[category]!;
+              break;
+            }
+          }
+        }
+        
+        // Update the nutritionInfo map with the serving size
+        if (nutritionInfo != null && nutritionInfo is Map) {
+          final updatedNutritionInfo = Map<String, dynamic>.from(nutritionInfo);
+          updatedNutritionInfo['servingSize'] = servingSize;
+          
+          // Update the document in the batch
+          batch.update(
+            doc.reference, 
+            {'nutritionInfo.servingSize': servingSize}
+          );
+          
+          updateCount++;
+          print('Added serving size "${servingSize}" to recipe ${doc.id}');
+        }
+      } catch (e) {
+        print('Error updating recipe ${doc.id}: $e');
+      }
+    }
+    
+    // Commit the batch updates if any were made
+    if (updateCount > 0) {
+      await batch.commit();
+      print('Successfully updated $updateCount recipes with serving size.');
+    } else {
+      print('No recipes needed serving size updates.');
+    }
+  } catch (e) {
+    print('Error during recipe serving size migration: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {

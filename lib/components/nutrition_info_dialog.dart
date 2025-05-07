@@ -87,6 +87,21 @@ class NutritionInfoDialog extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  
+                  // Display serving size if available
+                  if (nutritionInfo.servingSize.isNotEmpty) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      'Serving size: ${nutritionInfo.servingSize}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: 'Open Sans',
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF030303),
+                      ),
+                    ),
+                  ],
+                  
                   SizedBox(height: 16),
                   
                   // Macronutrients Section
