@@ -151,6 +151,12 @@ class _RecipeScreenState extends State<RecipeScreen> {
     }
   }
 
+  // Handle rating changes
+  void _handleRatingChanged(double newRating) {
+    // Refresh the recipe data to get updated ratings
+    _refreshRecipeData();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -288,8 +294,13 @@ class _RecipeScreenState extends State<RecipeScreen> {
               const Center(child: Text('Creator profile not found')),
             const SizedBox(height: 24),
 
-            // Rating Block
-            RatingBlock(),
+            // Rating Block - Updated to use the new version
+            _currentRecipe.id != null && _currentRecipe.id!.isNotEmpty
+              ? RatingBlock(
+                  recipeId: _currentRecipe.id!,
+                  onRatingChanged: _handleRatingChanged,
+                )
+              : const Center(child: Text('Cannot rate this recipe')),
             const SizedBox(height: 24),
           ],
         ),
