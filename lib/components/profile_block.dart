@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/profile.dart';
 import '../screens/profile_screen.dart';
 import '../services/profile_service.dart';
+import '../navigation/no_animation_page_route.dart';
 
 class ProfileBlock extends StatefulWidget {
   final Profile profile;
@@ -89,7 +90,7 @@ class _ProfileBlockState extends State<ProfileBlock> {
         // Navigate to the ProfileScreen with the user's UID
         Navigator.push(
           context,
-          MaterialPageRoute(
+          NoAnimationPageRoute(
             builder: (context) => ProfileScreen(userId: widget.profile.uid),
           ),
         ).then((_) {

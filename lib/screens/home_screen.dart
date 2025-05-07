@@ -5,12 +5,14 @@ import '../components/profile_block.dart';
 import '../components/title_bar.dart';
 import '../components/cook_now_block.dart';
 import '../components/header_text.dart';
+import '../components/persistent_bottom_nav_scaffold.dart';
 import '../services/recipe_service.dart';
 import '../services/profile_service.dart';
 import '../models/recipe.dart';
 import '../models/profile.dart';
 import '../screens/profile_screen.dart';
 import '../services/auth_service.dart';
+import '../navigation/no_animation_page_route.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -139,6 +141,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _navigateToProfile() {
+    if (_currentUserId != null) {
+      Navigator.push(
+        context,
+        NoAnimationPageRoute(
+          builder: (context) => ProfileScreen(userId: _currentUserId!),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Define spacing constants here directly in the build method
@@ -148,25 +161,20 @@ class _HomeScreenState extends State<HomeScreen> {
     const double chefProfileSpacing = 8.0; // Spacing between profile blocks
     const double contentSpacing = 16.0; // Regular content spacing (for loading indicators, etc.)
     
-    return Scaffold(
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
       backgroundColor: Colors.white,
+      onNavItemTap: (index) {
+        if (index == 4 && _currentUserId != null) {
+          _navigateToProfile();
+        }
+      },
       body: CustomScrollView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           TitleBar(
-            onProfileTap: () {
-              if (_currentUserId != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProfileScreen(
-                      userId: _currentUserId!,
-                    ),
-                  ),
-                );
-              }
-            },
+            onProfileTap: _navigateToProfile,
           ),
           // Divider
           SliverToBoxAdapter(
@@ -358,21 +366,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SizedBox(height: 24),
           ),
         ],
-      ),
-      bottomNavigationBar: FooterNavBar(
-        currentUserId: _currentUserId,
-        onTap: (index) {
-          if (index == 4 && _currentUserId != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProfileScreen(
-                  userId: _currentUserId!,
-                ),
-              ),
-            );
-          }
-        },
       ),
     );
   }

@@ -9,10 +9,13 @@ import '../components/footer_nav_bar.dart';
 import '../components/header_text.dart';
 import '../components/recipe_options_menu.dart';
 import '../components/nutrition_info_dialog.dart';
+import '../components/persistent_bottom_nav_scaffold.dart';
+import '../navigation/no_animation_page_route.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/recipe_service.dart';
 import '../screens/profile_screen.dart';
+import '../screens/home_screen.dart';
 
 class RecipeScreen extends StatefulWidget {
   final Recipe recipe;
@@ -221,75 +224,58 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
 
-// Handle options menu selection
-void _showOptionsMenu(GlobalKey optionsButtonKey) {
-  final bool isOwner = _isRecipeOwner();
-  
-  // Get the render box from the button's key
-  final RenderBox renderBox = optionsButtonKey.currentContext!.findRenderObject() as RenderBox;
-  final position = renderBox.localToGlobal(Offset.zero);
-  
-  showMenu(
-    context: context,
-    position: RelativeRect.fromRect(
-      Rect.fromLTWH(position.dx, position.dy, 0, 0),
-      Rect.fromLTWH(0, 0, MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
-    ),
-    items: [
-      // Nutrition Info Option
-      PopupMenuItem(
-        height: 48, // Reduced height from 56
-        padding: EdgeInsets.zero, // Remove default padding
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(16),
-              bottom: isOwner ? Radius.zero : Radius.circular(16),
-            ),
-          ),
-          child: ListTile(
-            dense: true, // Makes the ListTile more compact
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
-            leading: Icon(Icons.restaurant_menu, color: Colors.green, size: 22), // Slightly smaller icon
-            title: Text(
-              'Nutrition Info',
-              style: TextStyle(
-                fontFamily: 'Open Sans',
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF030303),
-              ),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              _showNutritionInfo();
-            },
-          ),
+  void _navigateToProfile() {
+    if (_currentUserId != null) {
+      Navigator.push(
+        context,
+        NoAnimationPageRoute(
+          builder: (context) => ProfileScreen(userId: _currentUserId!),
         ),
+      );
+    }
+  }
+  
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => HomeScreen(),
       ),
-      
-      // Public/Private Toggle - only for recipe owners
-      if (isOwner)
+    );
+  }
+
+  // Handle options menu selection
+  void _showOptionsMenu(GlobalKey optionsButtonKey) {
+    final bool isOwner = _isRecipeOwner();
+    
+    // Get the render box from the button's key
+    final RenderBox renderBox = optionsButtonKey.currentContext!.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    
+    showMenu(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(position.dx, position.dy, 0, 0),
+        Rect.fromLTWH(0, 0, MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
+      ),
+      items: [
+        // Nutrition Info Option
         PopupMenuItem(
           height: 48, // Reduced height from 56
           padding: EdgeInsets.zero, // Remove default padding
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.vertical(
-                top: Radius.zero,
-                bottom: Radius.circular(16),
+                top: Radius.circular(16),
+                bottom: isOwner ? Radius.zero : Radius.circular(16),
               ),
             ),
             child: ListTile(
               dense: true, // Makes the ListTile more compact
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
-              leading: Icon(
-                _currentRecipe.isPublic ? Icons.public : Icons.lock,
-                color: _currentRecipe.isPublic ? Colors.blue : Colors.orange,
-                size: 22, // Slightly smaller icon
-              ),
+              leading: Icon(Icons.restaurant_menu, color: Colors.green, size: 22), // Slightly smaller icon
               title: Text(
-                _currentRecipe.isPublic ? 'Make Private' : 'Make Public',
+                'Nutrition Info',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   fontSize: 16,
@@ -299,21 +285,57 @@ void _showOptionsMenu(GlobalKey optionsButtonKey) {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _togglePublicStatus();
+                _showNutritionInfo();
               },
             ),
           ),
         ),
-    ],
-    elevation: 8,
-    // Style the popup menu to match app design
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-    color: Colors.white,
-  );
-}
-
+        
+        // Public/Private Toggle - only for recipe owners
+        if (isOwner)
+          PopupMenuItem(
+            height: 48, // Reduced height from 56
+            padding: EdgeInsets.zero, // Remove default padding
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.zero,
+                  bottom: Radius.circular(16),
+                ),
+              ),
+              child: ListTile(
+                dense: true, // Makes the ListTile more compact
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
+                leading: Icon(
+                  _currentRecipe.isPublic ? Icons.public : Icons.lock,
+                  color: _currentRecipe.isPublic ? Colors.blue : Colors.orange,
+                  size: 22, // Slightly smaller icon
+                ),
+                title: Text(
+                  _currentRecipe.isPublic ? 'Make Private' : 'Make Public',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF030303),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _togglePublicStatus();
+                },
+              ),
+            ),
+          ),
+      ],
+      elevation: 8,
+      // Style the popup menu to match app design
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      color: Colors.white,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -333,15 +355,23 @@ void _showOptionsMenu(GlobalKey optionsButtonKey) {
       );
     }
 
-    return Scaffold(
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
       backgroundColor: Colors.white,
       appBar: RecipeTitleBar(
         title: _currentRecipe.title,
         isFavorited: isFavorited,
         onBackPressed: () => Navigator.pop(context),
         onFavoritePressed: _toggleFavorite,
-        onOptionsPressed: _showOptionsMenu, // Now receives the GlobalKey
+        onOptionsPressed: _showOptionsMenu,
       ),
+      onNavItemTap: (index) {
+        if (index == 4 && _currentUserId != null) {
+          _navigateToProfile();
+        } else if (index == 0) {
+          _navigateToHome();
+        }
+      },
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
@@ -462,21 +492,6 @@ void _showOptionsMenu(GlobalKey optionsButtonKey) {
             const SizedBox(height: 24),
           ],
         ),
-      ),
-      bottomNavigationBar: FooterNavBar(
-        currentUserId: _currentUserId,
-        onTap: (index) {
-          if (index == 4 && _currentUserId != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProfileScreen(userId: _currentUserId!),
-              ),
-            );
-          } else if (index == 0) {
-            Navigator.pushReplacementNamed(context, '/home');
-          }
-        },
       ),
     );
   }

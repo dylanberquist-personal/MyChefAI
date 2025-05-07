@@ -3,6 +3,7 @@ import '../models/recipe.dart';
 import '../screens/recipe_screen.dart';
 import '../services/auth_service.dart';
 import '../services/recipe_service.dart';
+import '../navigation/no_animation_page_route.dart';
 
 class RecipeBlock extends StatefulWidget {
   final Recipe recipe;
@@ -95,7 +96,7 @@ class _RecipeBlockState extends State<RecipeBlock> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
+              NoAnimationPageRoute(
                 builder: (context) => RecipeScreen(recipe: _currentRecipe),
               ),
             ).then((_) {

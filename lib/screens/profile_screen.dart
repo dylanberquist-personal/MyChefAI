@@ -14,6 +14,9 @@ import '../components/footer_nav_bar.dart';
 import '../services/auth_service.dart';
 import '../components/text_card.dart';
 import '../services/storage_service.dart';
+import '../components/persistent_bottom_nav_scaffold.dart';
+import '../navigation/no_animation_page_route.dart';
+import 'home_screen.dart';
 import 'favorite_recipes_screen.dart';
 import 'login_screen.dart';
 
@@ -94,29 +97,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _aboutController.text = profile.description;
           _locationController.text = profile.region ?? '';
           _dietaryController.text = profile.dietaryRestrictions;
-          _isLoading = false; // Make sure we set loading to false when we have data
+          _isLoading = false;
         });
       } else {
         if (mounted) {
           setState(() {
-            _isLoading = false; // Set loading to false even if no profile found
+            _isLoading = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Profile not found')),
           );
-          Navigator.pop(context); // Navigate back if profile not found
+          Navigator.pop(context);
         }
       }
     } catch (e) {
       print('Error fetching profile: $e');
       if (mounted) {
         setState(() {
-          _isLoading = false; // Make sure to set loading to false on error
+          _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading profile: ${e.toString()}')),
         );
-        Navigator.pop(context); // Navigate back on error
+        Navigator.pop(context);
       }
     }
   }
@@ -154,50 +157,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchFollowerCount() async {
-  try {
-    DocumentSnapshot doc = await FirebaseFirestore.instance
-        .collection('profiles')
-        .doc(widget.userId)
-        .get();
-    
-    if (mounted && doc.exists) {
-      final data = doc.data() as Map<String, dynamic>;
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('profiles')
+          .doc(widget.userId)
+          .get();
       
-      // First try to get followerCount directly
-      if (data.containsKey('followerCount') && data['followerCount'] != null) {
-        var count = data['followerCount'];
-        setState(() {
-          if (count is int) {
-            _followerCount = count;
-          } else if (count is double) {
-            _followerCount = count.toInt();
-          } else if (count is String && int.tryParse(count) != null) {
-            _followerCount = int.parse(count);
-          } else {
-            // If followerCount is invalid, fallback to counting the followers array
+      if (mounted && doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        
+        if (data.containsKey('followerCount') && data['followerCount'] != null) {
+          var count = data['followerCount'];
+          setState(() {
+            if (count is int) {
+              _followerCount = count;
+            } else if (count is double) {
+              _followerCount = count.toInt();
+            } else if (count is String && int.tryParse(count) != null) {
+              _followerCount = int.parse(count);
+            } else {
+              List<dynamic> followers = data['followers'] ?? [];
+              _followerCount = followers.length;
+            }
+          });
+        } else {
+          setState(() {
             List<dynamic> followers = data['followers'] ?? [];
             _followerCount = followers.length;
-          }
-        });
-      } else {
-        // If followerCount doesn't exist, fallback to counting the followers array
-        setState(() {
-          List<dynamic> followers = data['followers'] ?? [];
-          _followerCount = followers.length;
-        });
+          });
+        }
+        
+        print('Fetched follower count: $_followerCount for user ${widget.userId}');
       }
-      
-      print('Fetched follower count: $_followerCount for user ${widget.userId}');
+    } catch (e) {
+      print('Error fetching follower count: $e');
     }
-  } catch (e) {
-    print('Error fetching follower count: $e');
   }
-}
 
   Future<void> _toggleFollow() async {
     if (_currentUserId == null) return;
     
-    // Optimistically update UI
     setState(() {
       _isFollowing = !_isFollowing;
       _followerCount += _isFollowing ? 1 : -1;
@@ -209,10 +208,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         await _profileService.unfollowUser(_currentUserId!, widget.userId);
       }
-      // Refresh follower count to ensure accuracy
       await _fetchFollowerCount();
     } catch (e) {
-      // Revert UI changes if operation failed
       setState(() {
         _isFollowing = !_isFollowing;
         _followerCount += _isFollowing ? 1 : -1;
@@ -257,7 +254,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     try {
-      // Show loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -271,13 +267,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-      // Upload image to storage
       final imageUrl = await _storageService.uploadProfileImage(
         _currentUserId!,
         _selectedImage!,
       );
 
-      // Update profile with new image URL
       final updatedProfile = Profile(
         id: _profile!.id,
         uid: _profile!.uid,
@@ -285,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profilePicture: imageUrl,
         email: _profile!.email,
         description: _aboutController.text,
-        topRecipeId: _profile!.topRecipeId, // Changed from topRecipe
+        topRecipeId: _profile!.topRecipeId,
         region: _locationController.text.isNotEmpty ? _locationController.text : null,
         chefScore: _profile!.chefScore,
         numberOfReviews: _profile!.numberOfReviews,
@@ -300,7 +294,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await _profileService.updateProfile(updatedProfile);
       
-      // Refresh profile data
       await _fetchProfile();
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -331,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profilePicture: _profile!.profilePicture,
         email: _profile!.email,
         description: _aboutController.text,
-        topRecipeId: _profile!.topRecipeId, // Changed from topRecipe
+        topRecipeId: _profile!.topRecipeId,
         region: _locationController.text.isNotEmpty ? _locationController.text : null,
         chefScore: _profile!.chefScore,
         numberOfReviews: _profile!.numberOfReviews,
@@ -359,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
+          NoAnimationPageRoute(builder: (context) => LoginScreen()),
           (route) => false,
         );
       }
@@ -368,6 +361,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SnackBar(content: Text('Error signing out: ${e.toString()}')),
       );
     }
+  }
+
+  void _navigateToFavorites() {
+    if (_currentUserId != null) {
+      Navigator.push(
+        context,
+        NoAnimationPageRoute(
+          builder: (context) => FavoriteRecipesScreen(userId: _currentUserId!),
+        ),
+      );
+    }
+  }
+
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => HomeScreen(),
+      ),
+    );
   }
 
   Widget _buildEditableSection({
@@ -450,9 +463,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final isOwnProfile = _currentUserId == widget.userId;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
+      currentProfileUserId: widget.userId,
       extendBodyBehindAppBar: true,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -475,6 +490,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
       ),
+      onNavItemTap: (index) {
+        if (index == 0) {
+          _navigateToHome();
+        } else if (index == 4 && _currentUserId != null && _currentUserId != widget.userId) {
+          Navigator.pushReplacement(
+            context,
+            NoAnimationPageRoute(
+              builder: (context) => ProfileScreen(userId: _currentUserId!),
+            ),
+          );
+        }
+      },
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -653,14 +680,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => FavoriteRecipesScreen(userId: _currentUserId!),
-                                ),
-                              );
-                            },
+                            onPressed: _navigateToFavorites,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: Colors.black,
@@ -787,24 +807,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _currentUserId != null
-          ? FooterNavBar(
-              currentUserId: _currentUserId!,
-              currentProfileUserId: widget.userId,
-              onTap: (index) {
-                if (index == 0) {
-                  Navigator.pushReplacementNamed(context, '/home');
-                } else if (index == 4) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProfileScreen(userId: _currentUserId!),
-                    ),
-                  );
-                }
-              },
-            )
-          : null,
     );
   }
 }

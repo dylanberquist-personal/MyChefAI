@@ -6,7 +6,9 @@ import '../components/header_text.dart';
 import '../services/profile_service.dart';
 import '../services/recipe_service.dart';
 import '../services/auth_service.dart';
-import '../components/footer_nav_bar.dart';
+import '../components/persistent_bottom_nav_scaffold.dart';
+import '../navigation/no_animation_page_route.dart';
+import '../screens/home_screen.dart';
 
 class FavoriteRecipesScreen extends StatefulWidget {
   final String userId;
@@ -73,12 +75,22 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
     }
   }
 
+  void _navigateToHome() {
+    Navigator.pushReplacement(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => HomeScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, // White app bar background
+        backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
         title: Text(
@@ -104,10 +116,17 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
         ),
-        scrolledUnderElevation: 0, // Prevent elevation when scrolling
-        surfaceTintColor: Colors.white, // Match background color
-        shadowColor: Colors.transparent, // Remove shadow
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.white,
+        shadowColor: Colors.transparent,
       ),
+      onNavItemTap: (index) {
+        if (index == 0) {
+          _navigateToHome();
+        } else if (index == 4 && _currentUserId != null) {
+          Navigator.pop(context);
+        }
+      },
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : _favoriteRecipes.isEmpty
@@ -136,10 +155,10 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
                   onRefresh: _loadFavoriteRecipes,
                   child: ListView.builder(
                     padding: EdgeInsets.only(
-                      top: 16, // Reduced top padding since we have a white app bar
+                      top: 16,
                       left: 24,
                       right: 24,
-                      bottom: 80, // Add extra padding at the bottom
+                      bottom: 80,
                     ),
                     itemCount: _favoriteRecipes.length,
                     itemBuilder: (context, index) {
@@ -150,18 +169,6 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
                     },
                   ),
                 ),
-      bottomNavigationBar: _currentUserId != null
-          ? FooterNavBar(
-              currentUserId: _currentUserId!,
-              onTap: (index) {
-                if (index == 0) {
-                  Navigator.pushReplacementNamed(context, '/home');
-                } else if (index == 4) {
-                  Navigator.pop(context); // Go back to the profile screen
-                }
-              },
-            )
-          : null,
     );
   }
 }
