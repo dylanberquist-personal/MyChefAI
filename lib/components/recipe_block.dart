@@ -69,6 +69,18 @@ class _RecipeBlockState extends State<RecipeBlock> {
 
   @override
   Widget build(BuildContext context) {
+    // Ensure averageRating is a valid number to prevent NaN or Infinity
+    final double safeRating = (_currentRecipe.averageRating.isNaN || 
+                             _currentRecipe.averageRating.isInfinite) 
+                             ? 0.0 
+                             : _currentRecipe.averageRating;
+    
+    // Ensure we have a valid number of ratings
+    final int safeNumberOfRatings = _currentRecipe.numberOfRatings < 0 ? 0 : _currentRecipe.numberOfRatings;
+    
+    // Ensure we have a valid number of favorites
+    final int safeNumberOfFavorites = _currentRecipe.numberOfFavorites < 0 ? 0 : _currentRecipe.numberOfFavorites;
+
     return SizedBox(
       width: MediaQuery.of(context).size.width - 48,
       child: Card(
@@ -131,11 +143,13 @@ class _RecipeBlockState extends State<RecipeBlock> {
                       children: [
                         // Profile Picture
                         CircleAvatar(
-                          backgroundImage: NetworkImage(
-                            _currentRecipe.creator.profilePicture ?? 'assets/images/profile_image_placeholder.png',
-                          ),
+                          backgroundImage: _currentRecipe.creator.profilePicture != null && 
+                                          _currentRecipe.creator.profilePicture!.isNotEmpty
+                              ? NetworkImage(_currentRecipe.creator.profilePicture!)
+                              : null,
                           radius: 16,
-                          child: _currentRecipe.creator.profilePicture == null
+                          child: (_currentRecipe.creator.profilePicture == null || 
+                                 _currentRecipe.creator.profilePicture!.isEmpty)
                               ? Image.asset(
                                   'assets/images/profile_image_placeholder.png',
                                   fit: BoxFit.cover,
@@ -161,18 +175,18 @@ class _RecipeBlockState extends State<RecipeBlock> {
                         Row(
                           children: [
                             // Full Stars
-                            for (int i = 0; i < _currentRecipe.averageRating.floor(); i++)
+                            for (int i = 0; i < safeRating.floor(); i++)
                               Icon(Icons.star, color: Colors.amber, size: 20),
                             // Half Star (if applicable)
-                            if (_currentRecipe.averageRating - _currentRecipe.averageRating.floor() >= 0.5)
+                            if (safeRating - safeRating.floor() >= 0.5)
                               Icon(Icons.star_half, color: Colors.amber, size: 20),
                             // Empty Stars
-                            for (int i = 0; i < 5 - _currentRecipe.averageRating.ceil(); i++)
+                            for (int i = 0; i < 5 - safeRating.ceil(); i++)
                               Icon(Icons.star_border, color: Colors.amber, size: 20),
                             SizedBox(width: 8),
                             // Rating Text
                             Text(
-                              '${_currentRecipe.averageRating.toStringAsFixed(1)} (${_currentRecipe.numberOfRatings})',
+                              '${safeRating.toStringAsFixed(1)} ($safeNumberOfRatings)',
                               style: TextStyle(fontSize: 14),
                             ),
                           ],
@@ -188,7 +202,7 @@ class _RecipeBlockState extends State<RecipeBlock> {
                             ),
                             SizedBox(width: 4),
                             Text(
-                              _currentRecipe.numberOfFavorites.toString(),
+                              safeNumberOfFavorites.toString(),
                               style: TextStyle(fontSize: 14),
                             ),
                           ],
