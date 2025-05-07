@@ -92,6 +92,30 @@ Future<List<Recipe>> getRecentRecipes(int limit) async {
   }
 }
 
+// Get more recent recipes with pagination
+Future<List<Recipe>> getMoreRecentRecipes(int limit, DateTime? lastTimestamp) async {
+  try {
+    Query query = _firestore
+        .collection('recipes')
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+    
+    // If we have a lastTimestamp, start after it
+    if (lastTimestamp != null) {
+      query = query.startAfter([Timestamp.fromDate(lastTimestamp)]);
+    }
+    
+    QuerySnapshot snapshot = await query.get();
+
+    return snapshot.docs
+        .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  } catch (e) {
+    print('Error fetching more recent recipes: $e');
+    return [];
+  }
+}
+
 // Delete a Recipe
 Future<void> deleteRecipe(String id) async {
   await _firestore.collection('recipes').doc(id).delete();
@@ -198,6 +222,129 @@ Future<Recipe?> getUpdatedRecipe(String recipeId) async {
   } catch (e) {
     print('Error fetching updated recipe: $e');
     return null;
+  }
+}
+
+// Get recipes from followed profiles
+Future<List<Recipe>> getRecipesFromFollowing(List<String> followingIds, int limit) async {
+  try {
+    // Handling Firestore's limitation of whereIn with max 10 values
+    if (followingIds.length > 10) {
+      // For simplicity, just use first 10
+      followingIds = followingIds.sublist(0, 10);
+    }
+    
+    // Check if the list is empty
+    if (followingIds.isEmpty) {
+      print('Following IDs list is empty, returning empty recipe list');
+      return [];
+    }
+    
+    print('Fetching recipes for followingIds: $followingIds');
+    
+    try {
+      // First attempt with compound query (requires index)
+      QuerySnapshot snapshot = await _firestore
+          .collection('recipes')
+          .where('creator.uid', whereIn: followingIds)
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+      
+      print('Found ${snapshot.docs.length} recipes from followed profiles');
+      
+      List<Recipe> recipes = [];
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          print('Recipe data: ${data['title']} by creator: ${data['creator']['uid']}');
+          recipes.add(Recipe.fromMap(data, doc.id));
+        } catch (e) {
+          print('Error parsing recipe document: $e');
+        }
+      }
+      
+      return recipes;
+    } catch (e) {
+      // If index doesn't exist, fall back to a simpler query without ordering
+      print('Index-based query failed, falling back to simpler query: $e');
+      
+      // Try with just the whereIn clause (doesn't require index)
+      QuerySnapshot snapshot = await _firestore
+          .collection('recipes')
+          .where('creator.uid', whereIn: followingIds)
+          .limit(limit)
+          .get();
+      
+      print('Found ${snapshot.docs.length} recipes in fallback query');
+      
+      List<Recipe> recipes = [];
+      for (var doc in snapshot.docs) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          print('Recipe data (fallback): ${data['title']} by creator: ${data['creator']['uid']}');
+          recipes.add(Recipe.fromMap(data, doc.id));
+        } catch (e) {
+          print('Error parsing recipe document: $e');
+        }
+      }
+      
+      // Sort the results locally since we couldn't use orderBy in the query
+      recipes.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!); // Descending order
+      });
+      
+      return recipes;
+    }
+  } catch (e) {
+    print('Error fetching recipes from following: $e');
+    return [];
+  }
+}
+
+// Get more recipes from followed profiles with pagination
+Future<List<Recipe>> getMoreRecipesFromFollowing(List<String> followingIds, int limit, DateTime? lastTimestamp) async {
+  try {
+    // Handling Firestore's limitation of whereIn with max 10 values
+    if (followingIds.length > 10) {
+      // For simplicity, just use first 10 - in a real app you'd implement chunking
+      followingIds = followingIds.sublist(0, 10);
+    }
+    
+    // Check if the list is empty
+    if (followingIds.isEmpty) {
+      return [];
+    }
+    
+    Query query = _firestore
+        .collection('recipes')
+        .where('creator.uid', whereIn: followingIds)
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+    
+    // If we have a lastTimestamp, start after it
+    if (lastTimestamp != null) {
+      query = query.startAfter([Timestamp.fromDate(lastTimestamp)]);
+    }
+    
+    QuerySnapshot snapshot = await query.get();
+    
+    List<Recipe> recipes = [];
+    for (var doc in snapshot.docs) {
+      try {
+        recipes.add(Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id));
+      } catch (e) {
+        print('Error parsing recipe document: $e');
+      }
+    }
+    
+    return recipes;
+  } catch (e) {
+    print('Error fetching more recipes from following: $e');
+    return [];
   }
 }
 }

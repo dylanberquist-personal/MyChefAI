@@ -13,6 +13,7 @@ import '../models/profile.dart';
 import '../screens/profile_screen.dart';
 import '../services/auth_service.dart';
 import '../navigation/no_animation_page_route.dart';
+import '../screens/recipe_feed_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -233,7 +234,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   HeaderText(text: 'Recipe feed'),
                   ElevatedButton(
                     onPressed: () {
-                      // Add button functionality
+                      Navigator.push(
+                        context,
+                        NoAnimationPageRoute(
+                          builder: (context) => RecipeFeedScreen(),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
