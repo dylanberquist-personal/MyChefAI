@@ -7,6 +7,8 @@ import '../components/category_tags.dart';
 import '../components/rating_block.dart';
 import '../components/footer_nav_bar.dart';
 import '../components/header_text.dart';
+import '../components/recipe_options_menu.dart';
+import '../components/nutrition_info_dialog.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/recipe_service.dart';
@@ -156,6 +158,162 @@ class _RecipeScreenState extends State<RecipeScreen> {
     // Refresh the recipe data to get updated ratings
     _refreshRecipeData();
   }
+  
+  // Check if current user is the recipe owner
+  bool _isRecipeOwner() {
+    return _currentUserId != null && _currentRecipe.creator.uid == _currentUserId;
+  }
+  
+  // Toggle public/private status of recipe
+  Future<void> _togglePublicStatus() async {
+    if (!_isRecipeOwner() || _currentRecipe.id == null) return;
+    
+    // Optimistically update UI
+    setState(() {
+      _currentRecipe.isPublic = !_currentRecipe.isPublic;
+    });
+    
+    try {
+      // Update the recipe in Firestore
+      final updatedRecipe = Recipe(
+        id: _currentRecipe.id,
+        title: _currentRecipe.title,
+        image: _currentRecipe.image,
+        ingredients: _currentRecipe.ingredients,
+        instructions: _currentRecipe.instructions,
+        categoryTags: _currentRecipe.categoryTags,
+        creator: _currentRecipe.creator,
+        averageRating: _currentRecipe.averageRating,
+        numberOfRatings: _currentRecipe.numberOfRatings,
+        numberOfFavorites: _currentRecipe.numberOfFavorites,
+        nutritionInfo: _currentRecipe.nutritionInfo,
+        isPublic: _currentRecipe.isPublic,
+        isFavorited: _currentRecipe.isFavorited,
+        createdAt: _currentRecipe.createdAt,
+      );
+      
+      await _recipeService.updateRecipe(updatedRecipe);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recipe is now ${_currentRecipe.isPublic ? 'public' : 'private'}')),
+      );
+    } catch (e) {
+      // Revert if operation fails
+      setState(() {
+        _currentRecipe.isPublic = !_currentRecipe.isPublic;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating recipe: ${e.toString()}')),
+      );
+    }
+  }
+  
+  // Show nutrition info dialog
+  void _showNutritionInfo() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return NutritionInfoDialog(
+          nutritionInfo: _currentRecipe.nutritionInfo,
+        );
+      },
+    );
+  }
+
+// Handle options menu selection
+void _showOptionsMenu(GlobalKey optionsButtonKey) {
+  final bool isOwner = _isRecipeOwner();
+  
+  // Get the render box from the button's key
+  final RenderBox renderBox = optionsButtonKey.currentContext!.findRenderObject() as RenderBox;
+  final position = renderBox.localToGlobal(Offset.zero);
+  
+  showMenu(
+    context: context,
+    position: RelativeRect.fromRect(
+      Rect.fromLTWH(position.dx, position.dy, 0, 0),
+      Rect.fromLTWH(0, 0, MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
+    ),
+    items: [
+      // Nutrition Info Option
+      PopupMenuItem(
+        height: 48, // Reduced height from 56
+        padding: EdgeInsets.zero, // Remove default padding
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(16),
+              bottom: isOwner ? Radius.zero : Radius.circular(16),
+            ),
+          ),
+          child: ListTile(
+            dense: true, // Makes the ListTile more compact
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
+            leading: Icon(Icons.restaurant_menu, color: Colors.green, size: 22), // Slightly smaller icon
+            title: Text(
+              'Nutrition Info',
+              style: TextStyle(
+                fontFamily: 'Open Sans',
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF030303),
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              _showNutritionInfo();
+            },
+          ),
+        ),
+      ),
+      
+      // Public/Private Toggle - only for recipe owners
+      if (isOwner)
+        PopupMenuItem(
+          height: 48, // Reduced height from 56
+          padding: EdgeInsets.zero, // Remove default padding
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.vertical(
+                top: Radius.zero,
+                bottom: Radius.circular(16),
+              ),
+            ),
+            child: ListTile(
+              dense: true, // Makes the ListTile more compact
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
+              leading: Icon(
+                _currentRecipe.isPublic ? Icons.public : Icons.lock,
+                color: _currentRecipe.isPublic ? Colors.blue : Colors.orange,
+                size: 22, // Slightly smaller icon
+              ),
+              title: Text(
+                _currentRecipe.isPublic ? 'Make Private' : 'Make Public',
+                style: TextStyle(
+                  fontFamily: 'Open Sans',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF030303),
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _togglePublicStatus();
+              },
+            ),
+          ),
+        ),
+    ],
+    elevation: 8,
+    // Style the popup menu to match app design
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    color: Colors.white,
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +340,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
         isFavorited: isFavorited,
         onBackPressed: () => Navigator.pop(context),
         onFavoritePressed: _toggleFavorite,
-        onOptionsPressed: () {},
+        onOptionsPressed: _showOptionsMenu, // Now receives the GlobalKey
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -294,7 +452,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               const Center(child: Text('Creator profile not found')),
             const SizedBox(height: 24),
 
-            // Rating Block - Updated to use the new version
+            // Rating Block
             _currentRecipe.id != null && _currentRecipe.id!.isNotEmpty
               ? RatingBlock(
                   recipeId: _currentRecipe.id!,

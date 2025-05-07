@@ -1,3 +1,4 @@
+// Update lib/components/recipe_title_bar.dart
 import 'package:flutter/material.dart';
 
 class RecipeTitleBar extends StatelessWidget implements PreferredSizeWidget {
@@ -5,9 +6,10 @@ class RecipeTitleBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isFavorited;
   final VoidCallback onBackPressed;
   final VoidCallback onFavoritePressed;
-  final VoidCallback onOptionsPressed;
+  final Function(GlobalKey) onOptionsPressed;
+  final GlobalKey optionsButtonKey = GlobalKey();
 
-  const RecipeTitleBar({
+  RecipeTitleBar({
     Key? key,
     required this.title,
     required this.isFavorited,
@@ -58,8 +60,9 @@ class RecipeTitleBar extends StatelessWidget implements PreferredSizeWidget {
               child: Transform.scale(
                 scale: 1.2, // Scale up the 3-dot icon by 20%
                 child: IconButton(
+                  key: optionsButtonKey, // Add the key here
                   icon: Icon(Icons.more_vert), // 3-dot options icon
-                  onPressed: onOptionsPressed,
+                  onPressed: () => onOptionsPressed(optionsButtonKey),
                 ),
               ),
             ),
