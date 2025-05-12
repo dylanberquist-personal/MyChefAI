@@ -1,19 +1,21 @@
+// lib/screens/create_recipe_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:math';
-import '../models/recipe.dart';
 import '../models/profile.dart';
-import '../models/nutrition.dart';
+import '../models/recipe.dart';
+import '../models/chat_message.dart';
 import '../services/recipe_service.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/recipe_generator_service.dart';
 import '../navigation/no_animation_page_route.dart';
 import '../screens/recipe_screen.dart';
-import '../components/recipe_form.dart';
-import '../components/recipe_loading_indicator.dart';
-import '../components/generated_recipe_view.dart';
 import '../components/persistent_bottom_nav_scaffold.dart';
+import '../components/chat_bubble.dart';
+import '../components/chat_input.dart';
+import '../components/recipe_chat_preview.dart';
+import '../components/restart_chat_dialog.dart';
+import '../components/loading_message_manager.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({Key? key}) : super(key: key);
@@ -24,63 +26,67 @@ class CreateRecipeScreen extends StatefulWidget {
 
 class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   final TextEditingController _promptController = TextEditingController();
+  final FocusNode _promptFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
   final ProfileService _profileService = ProfileService();
   final RecipeService _recipeService = RecipeService();
-  final Random _random = Random();
+  final LoadingMessageManager _loadingManager = LoadingMessageManager();
   
   String? _currentUserId;
   Profile? _currentUserProfile;
   bool _isLoading = false;
   bool _isRecipeGenerated = false;
-  String? _errorMessage;
   String _dietaryRestrictions = '';
-  bool _respectsDietaryRestrictions = false;
-  
-  // Loading state
-  String _loadingMessage = 'Creating your recipe...';
-  Timer? _loadingMessageTimer;
-  List<String> _loadingMessages = [
-    'Searching for the perfect ingredients...',
-    'Adding a pinch of creativity...',
-    'Calculating nutrition facts...',
-    'Testing flavors in our virtual kitchen...',
-    'Making sure measurements are perfect...',
-    'Adjusting for your dietary preferences...',
-    'Almost there! Final touches...',
-    'Consulting with our virtual chef...',
-    'Balancing flavors...',
-    'Checking cooking times...',
-    'Making it delicious...',
-    'Finding complementary ingredients...',
-    'Adjusting spices to perfection...',
-    'Making sure it\'s easy to prepare...',
-    'Ensuring it fits your preferences...',
-    'Creating a culinary masterpiece...',
-    'Infusing some culinary magic...',
-    'Mixing textures and flavors...',
-    'Ensuring the recipe is balanced...',
-    'Making it both healthy and tasty...',
-  ];
   
   // Generated recipe data
   String _generatedTitle = '';
   List<String> _generatedIngredients = [];
   List<String> _generatedInstructions = [];
   List<String> _generatedCategoryTags = [];
-  Nutrition? _generatedNutrition;
+  bool _respectsDietaryRestrictions = false;
+  late RecipeGenerationResult _generatedRecipe;
+  
+  // Chat messages
+  List<ChatMessage> _messages = [];
+  bool _isFirstMessage = true;
   
   @override
   void initState() {
     super.initState();
     _fetchCurrentUser();
+    _addInitialMessages();
   }
   
   @override
   void dispose() {
-    _loadingMessageTimer?.cancel();
+    _loadingManager.dispose();
     _promptController.dispose();
+    _promptFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _addInitialMessages() {
+    // Add initial greeting message
+    _messages.add(
+      ChatMessage(
+        content: 'Hi there! I\'m your recipe assistant. Tell me what you\'d like to cook, and I\'ll create a recipe for you. Feel free to mention any ingredients, cuisine type, or dietary preferences!',
+        type: MessageType.response,
+      )
+    );
+  }
+  
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
   
   Future<void> _fetchCurrentUser() async {
@@ -96,49 +102,106 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           _currentUserProfile = profile;
           _dietaryRestrictions = profile.dietaryRestrictions;
         });
+        
+        // Add dietary restriction message if any
+        if (_dietaryRestrictions.isNotEmpty) {
+          _messages.add(
+            ChatMessage(
+              content: 'I noticed you have dietary preferences: $_dietaryRestrictions. I\'ll make sure to account for these in your recipes!',
+              type: MessageType.response,
+            )
+          );
+        }
       }
     }
   }
   
-  void _startLoadingMessageCycle() {
-    _loadingMessageTimer = Timer.periodic(Duration(milliseconds: 2000 + _random.nextInt(1000)), (timer) {
-      if (_isLoading && mounted) {
-        setState(() {
-          _loadingMessage = _loadingMessages[_random.nextInt(_loadingMessages.length)];
-        });
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-  
-  Future<void> _generateRecipe() async {
-    if (_promptController.text.trim().isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter a prompt for your recipe';
-      });
-      return;
-    }
+  Future<void> _handleSendPrompt() async {
+    final prompt = _promptController.text.trim();
+    if (prompt.isEmpty) return;
     
+    // Add user message to chat
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          content: prompt,
+          type: MessageType.prompt,
+        )
+      );
+      _promptController.clear();
+    });
+    _scrollToBottom();
+
     if (_currentUserProfile == null) {
       setState(() {
-        _errorMessage = 'Please sign in to create recipes';
+        _messages.add(
+          ChatMessage(
+            content: 'Please sign in to create recipes.',
+            type: MessageType.response,
+          )
+        );
       });
+      _scrollToBottom();
       return;
     }
     
+    // Add loading message
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
-      _loadingMessage = _loadingMessages[_random.nextInt(_loadingMessages.length)];
+      final loadingMsg = _loadingManager.getRandomMessage();
+      _messages.add(
+        ChatMessage(
+          content: loadingMsg,
+          type: MessageType.response,
+        )
+      );
     });
+    _scrollToBottom();
     
-    _startLoadingMessageCycle();
+    // Start cycling loading messages
+    _loadingManager.startCycling(
+      messages: _messages,
+      setState: setState,
+      scrollToBottom: _scrollToBottom,
+    );
     
+    try {
+      // If this is the first message, generate a new recipe
+      if (_isFirstMessage) {
+        await _generateNewRecipe(prompt);
+      } else {
+        // If not the first message, modify the existing recipe
+        await _modifyExistingRecipe(prompt);
+      }
+    } catch (e) {
+      print('Error handling prompt: $e');
+      setState(() {
+        _isLoading = false;
+        _messages.removeLast(); // Remove loading message
+        _messages.add(
+          ChatMessage(
+            content: 'Sorry, I had trouble creating your recipe. Please try again.',
+            type: MessageType.response,
+          )
+        );
+      });
+      _scrollToBottom();
+    } finally {
+      _loadingManager.stopCycling();
+    }
+  }
+  
+  void _toggleExpandRecipe(int index) {
+    setState(() {
+      _messages[index].isExpanded = !_messages[index].isExpanded;
+    });
+  }
+  
+  Future<void> _generateNewRecipe(String prompt) async {
     try {
       // Use the recipe generator service
       final result = await RecipeGeneratorService.generateRecipe(
-        _promptController.text.trim(),
+        prompt,
         _dietaryRestrictions.isNotEmpty ? _dietaryRestrictions : null
       );
       
@@ -149,21 +212,129 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           _generatedInstructions = result.instructions;
           _generatedCategoryTags = result.categoryTags;
           _respectsDietaryRestrictions = result.respectsDietaryRestrictions;
-          _generatedNutrition = result.nutrition;
+          _generatedRecipe = result;
           _isRecipeGenerated = true;
           _isLoading = false;
+          
+          // Remove loading message
+          _messages.removeLast();
+          
+          // Add success message
+          _messages.add(
+            ChatMessage(
+              content: 'I\'ve created a recipe based on your request. Here\'s what I came up with:',
+              type: MessageType.response,
+            )
+          );
+          
+          // Find the future index of this message for toggle functionality
+          final futureMessageIndex = _messages.length;
+          
+          // Add recipe as a special message
+          _messages.add(
+            ChatMessage(
+              content: result.title,
+              type: MessageType.recipe,
+              extraContent: RecipeChatPreview(
+                recipe: result,
+                isExpanded: false,
+                onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
+                onSave: _saveRecipe,
+              ),
+              expandedContent: RecipeChatPreview(
+                recipe: result,
+                isExpanded: true,
+                onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
+                onSave: _saveRecipe,
+              ),
+              respectsDietaryRestrictions: result.respectsDietaryRestrictions,
+              dietaryRestrictions: _dietaryRestrictions,
+            )
+          );
+          
+          // Add follow-up message
+          _messages.add(
+            ChatMessage(
+              content: 'What do you think? If you\'d like any changes, just let me know!',
+              type: MessageType.response,
+            )
+          );
+          
+          _isFirstMessage = false;
         });
+        _scrollToBottom();
       }
     } catch (e) {
-      print('Error generating recipe: $e');
+      throw e;
+    }
+  }
+  
+  Future<void> _modifyExistingRecipe(String prompt) async {
+    try {
+      final result = await RecipeGeneratorService.generateRecipe(
+        prompt,
+        _dietaryRestrictions.isNotEmpty ? _dietaryRestrictions : null
+      );
+      
       if (mounted) {
         setState(() {
-          _errorMessage = 'Error generating recipe: ${e.toString()}';
+          _generatedTitle = result.title;
+          _generatedIngredients = result.ingredients;
+          _generatedInstructions = result.instructions;
+          _generatedCategoryTags = result.categoryTags;
+          _respectsDietaryRestrictions = result.respectsDietaryRestrictions;
+          _generatedRecipe = result;
+          _isRecipeGenerated = true;
           _isLoading = false;
+          
+          // Remove loading message
+          _messages.removeLast();
+          
+          // Add modified recipe message
+          _messages.add(
+            ChatMessage(
+              content: 'I\'ve updated the recipe based on your feedback. Here\'s the new version:',
+              type: MessageType.response,
+            )
+          );
+          
+          // Find the future index of this message for toggle functionality
+          final futureMessageIndex = _messages.length;
+          
+          // Add recipe as a special message
+          _messages.add(
+            ChatMessage(
+              content: result.title,
+              type: MessageType.recipe,
+              extraContent: RecipeChatPreview(
+                recipe: result,
+                isExpanded: false,
+                onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
+                onSave: _saveRecipe,
+              ),
+              expandedContent: RecipeChatPreview(
+                recipe: result,
+                isExpanded: true,
+                onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
+                onSave: _saveRecipe,
+              ),
+              respectsDietaryRestrictions: result.respectsDietaryRestrictions,
+              dietaryRestrictions: _dietaryRestrictions,
+            )
+          );
+          
+          // Add follow-up message
+          _messages.add(
+            ChatMessage(
+              content: 'How does this look? You can ask for more changes or save this recipe.',
+              type: MessageType.response,
+            )
+          );
         });
+        _scrollToBottom();
       }
-    } finally {
-      _loadingMessageTimer?.cancel();
+    } catch (e) {
+      throw e;
     }
   }
   
@@ -173,7 +344,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     try {
       setState(() {
         _isLoading = true;
+        _messages.add(
+          ChatMessage(
+            content: 'Saving your recipe...',
+            type: MessageType.response,
+          )
+        );
       });
+      _scrollToBottom();
       
       final newRecipe = Recipe(
         id: null,
@@ -186,7 +364,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         averageRating: 0.0,
         numberOfRatings: 0,
         numberOfFavorites: 0,
-        nutritionInfo: _generatedNutrition!,
+        nutritionInfo: _generatedRecipe.nutrition,
         isPublic: true,
         isFavorited: false,
         createdAt: DateTime.now(),
@@ -205,7 +383,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         averageRating: 0.0,
         numberOfRatings: 0,
         numberOfFavorites: 0,
-        nutritionInfo: _generatedNutrition!,
+        nutritionInfo: _generatedRecipe.nutrition,
         isPublic: true,
         isFavorited: false,
         createdAt: DateTime.now(),
@@ -214,37 +392,83 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          // Remove "Saving..." message
+          _messages.removeLast();
+          // Add success message
+          _messages.add(
+            ChatMessage(
+              content: 'Recipe saved successfully! Taking you to the recipe page...',
+              type: MessageType.response,
+            )
+          );
         });
+        _scrollToBottom();
         
-        Navigator.pushReplacement(
-          context,
-          NoAnimationPageRoute(
-            builder: (context) => RecipeScreen(recipe: savedRecipe),
-          ),
-        );
+        // Navigate to recipe screen after a short delay
+        Future.delayed(Duration(seconds: 1), () {
+          Navigator.pushReplacement(
+            context,
+            NoAnimationPageRoute(
+              builder: (context) => RecipeScreen(recipe: savedRecipe),
+            ),
+          );
+        });
       }
     } catch (e) {
       print('Error saving recipe: $e');
       if (mounted) {
         setState(() {
-          _errorMessage = 'Error saving recipe: ${e.toString()}';
           _isLoading = false;
+          // Remove "Saving..." message
+          _messages.removeLast();
+          // Add error message
+          _messages.add(
+            ChatMessage(
+              content: 'Sorry, I couldn\'t save your recipe. Please try again.',
+              type: MessageType.response,
+            )
+          );
         });
+        _scrollToBottom();
       }
     }
   }
   
-  void _resetRecipeGeneration() {
-    setState(() {
-      _isRecipeGenerated = false;
-    });
+  void _restartChat() {
+    RestartChatDialog.show(
+      context: context,
+      onRestartConfirmed: () {
+        setState(() {
+          _messages = [
+            ChatMessage(
+              content: 'Hi there! I\'m your recipe assistant. Tell me what you\'d like to cook, and I\'ll create a recipe for you. Feel free to mention any ingredients, cuisine type, or dietary preferences!',
+              type: MessageType.response,
+            )
+          ];
+          
+          // Add dietary restriction message if any
+          if (_dietaryRestrictions.isNotEmpty) {
+            _messages.add(
+              ChatMessage(
+                content: 'I noticed you have dietary preferences: $_dietaryRestrictions. I\'ll make sure to account for these in your recipes!',
+                type: MessageType.response,
+              )
+            );
+          }
+          
+          _isFirstMessage = true;
+          _isRecipeGenerated = false;
+          _isLoading = false;
+        });
+      }
+    );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return PersistentBottomNavScaffold(
       currentUserId: _currentUserId,
-      backgroundColor: Colors.white,
+      backgroundColor: Color(0xFFF7F7F7), // Light gray background for chat
       onNavItemTap: (index) {
         // Navigation handled by the scaffold
       },
@@ -253,7 +477,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
         title: Text(
-          'Create Recipe',
+          'Recipe Creator', // Changed from 'Recipe Assistant'
           style: TextStyle(
             color: Colors.black,
             fontSize: 24,
@@ -271,48 +495,75 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             ),
           ),
         ),
+        actions: [
+          // Add restart button
+          Container(
+            margin: EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: Icon(Icons.refresh),
+              tooltip: 'New Recipe',
+              onPressed: _restartChat,
+              style: IconButton.styleFrom(
+                backgroundColor: Color(0xFFFFFFC1).withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
         surfaceTintColor: Colors.white,
         shadowColor: Colors.transparent,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Recipe Form
-            RecipeForm(
-              promptController: _promptController,
-              dietaryRestrictions: _dietaryRestrictions.isNotEmpty ? _dietaryRestrictions : null,
-              errorMessage: _errorMessage,
-              isLoading: _isLoading,
-              isRecipeGenerated: _isRecipeGenerated,
-              onGenerate: _generateRecipe,
+      body: Column(
+        children: [
+          // Chat messages area
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final message = _messages[index];
+                
+                if (message.type == MessageType.prompt) {
+                  return ChatBubble(
+                    message: message.content,
+                    type: BubbleType.user,
+                  );
+                } else if (message.type == MessageType.recipe) {
+                  return ChatBubble(
+                    message: message.content,
+                    type: BubbleType.assistant,
+                    child: message.isExpanded ? message.expandedContent : message.extraContent,
+                    respectsDietaryRestrictions: message.respectsDietaryRestrictions,
+                    dietaryRestrictions: message.dietaryRestrictions,
+                    onTapExpand: () => _toggleExpandRecipe(index),
+                    isExpanded: message.isExpanded,
+                    isRecipe: true, // Add this flag to identify recipe messages
+                  );
+                } else {
+                  return ChatBubble(
+                    message: message.content,
+                    type: BubbleType.assistant,
+                  );
+                }
+              },
             ),
-            
-            // Loading Indicator
-            if (_isLoading) ...[
-              SizedBox(height: 32),
-              RecipeLoadingIndicator(loadingMessage: _loadingMessage),
-            ],
-            
-            // Generated Recipe View
-            if (_isRecipeGenerated && !_isLoading) ...[
-              SizedBox(height: 32),
-              GeneratedRecipeView(
-                title: _generatedTitle,
-                ingredients: _generatedIngredients,
-                instructions: _generatedInstructions,
-                categoryTags: _generatedCategoryTags,
-                nutrition: _generatedNutrition,
-                respectsDietaryRestrictions: _respectsDietaryRestrictions,
-                dietaryRestrictions: _dietaryRestrictions.isNotEmpty ? _dietaryRestrictions : null,
-                isLoading: _isLoading,
-                onSave: _saveRecipe,
-                onTryAgain: !_respectsDietaryRestrictions ? _resetRecipeGeneration : null,
-              ),
-            ],
-          ],
-        ),
+          ),
+          
+          // Input area with padding below
+          Padding(
+            padding: EdgeInsets.only(bottom: 5), // 5px padding below the input area
+            child: ChatInput(
+              controller: _promptController,
+              focusNode: _promptFocusNode,
+              isLoading: _isLoading,
+              isFirstMessage: _isFirstMessage,
+              onSend: _handleSendPrompt,
+            ),
+          ),
+        ],
       ),
     );
   }
