@@ -11,6 +11,45 @@ class RecipeService {
     await _firestore.collection('recipes').doc(recipe.id).set(recipe.toMap());
   }
 
+  // Create a new recipe and return its ID
+  Future<String> createRecipe(Recipe recipe) async {
+    try {
+      // Create a new document reference
+      final docRef = _firestore.collection('recipes').doc();
+      
+      // Create a copy of the recipe with the new ID
+      final recipeWithId = Recipe(
+        id: docRef.id,
+        title: recipe.title,
+        image: recipe.image,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        categoryTags: recipe.categoryTags,
+        creator: recipe.creator,
+        averageRating: recipe.averageRating,
+        numberOfRatings: recipe.numberOfRatings,
+        numberOfFavorites: recipe.numberOfFavorites,
+        nutritionInfo: recipe.nutritionInfo,
+        isPublic: recipe.isPublic,
+        isFavorited: recipe.isFavorited,
+        createdAt: recipe.createdAt ?? DateTime.now(),
+      );
+      
+      // Save the recipe
+      await docRef.set(recipeWithId.toMap());
+      
+      // Update the user's myRecipes array
+      await _firestore.collection('profiles').doc(recipe.creator.id).update({
+        'myRecipes': FieldValue.arrayUnion([docRef.id]),
+      });
+      
+      return docRef.id;
+    } catch (e) {
+      print('Error creating recipe: $e');
+      throw e;
+    }
+  }
+
   // Fetch a Recipe by ID
 Future<Recipe?> getRecipeById(String id) async {
   DocumentSnapshot doc = await _firestore.collection('recipes').doc(id).get();

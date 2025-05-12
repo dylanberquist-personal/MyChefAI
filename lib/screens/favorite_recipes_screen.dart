@@ -9,6 +9,8 @@ import '../services/auth_service.dart';
 import '../components/persistent_bottom_nav_scaffold.dart';
 import '../navigation/no_animation_page_route.dart';
 import '../screens/home_screen.dart';
+import '../screens/create_recipe_screen.dart'; // Add this import
+import '../screens/profile_screen.dart'; // Add this import
 
 class FavoriteRecipesScreen extends StatefulWidget {
   final String userId;
@@ -31,8 +33,17 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
   @override
   void initState() {
     super.initState();
-    _currentUserId = widget.userId; // Store the user ID
+    _fetchCurrentUser();
     _loadFavoriteRecipes();
+  }
+
+  Future<void> _fetchCurrentUser() async {
+    final user = await _authService.getCurrentUser();
+    if (user != null) {
+      setState(() {
+        _currentUserId = user.uid;
+      });
+    }
   }
 
   Future<void> _loadFavoriteRecipes() async {
@@ -84,6 +95,28 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
     );
   }
 
+  // Add method to navigate to CreateRecipeScreen
+  void _navigateToCreateRecipe() {
+    Navigator.push(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => CreateRecipeScreen(),
+      ),
+    );
+  }
+
+  // Add method to navigate to Profile Screen
+  void _navigateToProfile() {
+    if (_currentUserId != null) {
+      Navigator.push(
+        context,
+        NoAnimationPageRoute(
+          builder: (context) => ProfileScreen(userId: _currentUserId!),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PersistentBottomNavScaffold(
@@ -123,8 +156,10 @@ class _FavoriteRecipesScreenState extends State<FavoriteRecipesScreen> {
       onNavItemTap: (index) {
         if (index == 0) {
           _navigateToHome();
+        } else if (index == 2) {
+          _navigateToCreateRecipe(); // Add this handler
         } else if (index == 4 && _currentUserId != null) {
-          Navigator.pop(context);
+          _navigateToProfile();
         }
       },
       body: _isLoading

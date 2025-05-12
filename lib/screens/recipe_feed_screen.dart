@@ -11,6 +11,7 @@ import '../components/persistent_bottom_nav_scaffold.dart';
 import '../navigation/no_animation_page_route.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/create_recipe_screen.dart'; // Add this import
 
 class RecipeFeedScreen extends StatefulWidget {
   const RecipeFeedScreen({Key? key}) : super(key: key);
@@ -263,6 +264,16 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
       );
     }
   }
+  
+  // Add method to navigate to CreateRecipeScreen
+  void _navigateToCreateRecipe() {
+    Navigator.push(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => CreateRecipeScreen(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -332,6 +343,8 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
       onNavItemTap: (index) {
         if (index == 0) {
           _navigateToHome();
+        } else if (index == 2) {
+          _navigateToCreateRecipe(); // Add this handler
         } else if (index == 4 && _currentUserId != null) {
           _navigateToProfile();
         }

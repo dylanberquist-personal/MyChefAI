@@ -17,6 +17,7 @@ dependencies:
   google_sign_in: ^6.1.5  # Ensure this is compatible
   cupertino_icons: ^1.0.8
   firebase_storage: ^12.4.4
+  http: ^1.1.0  # Added HTTP package for API calls
 
 dev_dependencies:
   flutter_test:

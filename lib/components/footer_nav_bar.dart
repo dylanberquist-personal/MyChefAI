@@ -84,7 +84,7 @@ class FooterNavBar extends StatelessWidget {
               child: Material(
                 color: Color(0xFFFFFFC1), // Yellow background
                 child: InkWell(
-                  onTap: () => onTap(2),
+                  onTap: () => onTap(2), // Index 2 corresponds to Create Recipe
                   child: Container(
                     width: 60,
                     height: 60,

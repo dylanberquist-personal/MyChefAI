@@ -16,6 +16,7 @@ import '../services/profile_service.dart';
 import '../services/recipe_service.dart';
 import '../screens/profile_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/create_recipe_screen.dart'; // Add this import
 
 class RecipeScreen extends StatefulWidget {
   final Recipe recipe;
@@ -243,6 +244,16 @@ class _RecipeScreenState extends State<RecipeScreen> {
       ),
     );
   }
+  
+  // Add method to navigate to CreateRecipeScreen
+  void _navigateToCreateRecipe() {
+    Navigator.push(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => CreateRecipeScreen(),
+      ),
+    );
+  }
 
   // Handle options menu selection
   void _showOptionsMenu(GlobalKey optionsButtonKey) {
@@ -366,10 +377,12 @@ class _RecipeScreenState extends State<RecipeScreen> {
         onOptionsPressed: _showOptionsMenu,
       ),
       onNavItemTap: (index) {
-        if (index == 4 && _currentUserId != null) {
-          _navigateToProfile();
-        } else if (index == 0) {
+        if (index == 0) {
           _navigateToHome();
+        } else if (index == 2) {
+          _navigateToCreateRecipe();
+        } else if (index == 4 && _currentUserId != null) {
+          _navigateToProfile();
         }
       },
       body: SingleChildScrollView(

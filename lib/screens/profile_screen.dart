@@ -19,6 +19,7 @@ import '../navigation/no_animation_page_route.dart';
 import 'home_screen.dart';
 import 'favorite_recipes_screen.dart';
 import 'login_screen.dart';
+import 'create_recipe_screen.dart'; // Add this import
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -382,6 +383,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+  
+  // Add navigation to CreateRecipeScreen
+  void _navigateToCreateRecipe() {
+    Navigator.push(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => CreateRecipeScreen(),
+      ),
+    );
+  }
 
   Widget _buildEditableSection({
     required String title,
@@ -493,6 +504,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onNavItemTap: (index) {
         if (index == 0) {
           _navigateToHome();
+        } else if (index == 2) {
+          _navigateToCreateRecipe();
         } else if (index == 4 && _currentUserId != null && _currentUserId != widget.userId) {
           Navigator.pushReplacement(
             context,

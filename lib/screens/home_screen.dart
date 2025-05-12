@@ -11,6 +11,7 @@ import '../services/profile_service.dart';
 import '../models/recipe.dart';
 import '../models/profile.dart';
 import '../screens/profile_screen.dart';
+import '../screens/create_recipe_screen.dart'; // Add this import
 import '../services/auth_service.dart';
 import '../navigation/no_animation_page_route.dart';
 import '../screens/recipe_feed_screen.dart';
@@ -152,6 +153,16 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
   }
+  
+  // Add this method to navigate to the CreateRecipeScreen
+  void _navigateToCreateRecipe() {
+    Navigator.push(
+      context,
+      NoAnimationPageRoute(
+        builder: (context) => CreateRecipeScreen(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +177,12 @@ class _HomeScreenState extends State<HomeScreen> {
       currentUserId: _currentUserId,
       backgroundColor: Colors.white,
       onNavItemTap: (index) {
-        if (index == 4 && _currentUserId != null) {
+        if (index == 0) {
+          // Already on home screen, do nothing
+        } else if (index == 2) {
+          // Create Recipe button pressed
+          _navigateToCreateRecipe();
+        } else if (index == 4 && _currentUserId != null) {
           _navigateToProfile();
         }
       },
@@ -191,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Cook Now Block
           SliverToBoxAdapter(
             child: CookNowBlock(
-              onCookNowPressed: () {},
+              onCookNowPressed: _navigateToCreateRecipe, // Use the navigation method
             ),
           ),
           
