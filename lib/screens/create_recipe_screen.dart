@@ -521,12 +521,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               icon: Icon(Icons.refresh),
               tooltip: 'New Recipe',
               onPressed: _restartChat,
-              style: IconButton.styleFrom(
-                backgroundColor: Color(0xFFFFFFC1).withOpacity(0.3),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
           ),
         ],
