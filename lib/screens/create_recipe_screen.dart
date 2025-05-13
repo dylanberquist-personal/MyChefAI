@@ -16,6 +16,7 @@ import '../components/chat_input.dart';
 import '../components/recipe_chat_preview.dart';
 import '../components/restart_chat_dialog.dart';
 import '../components/loading_message_manager.dart';
+import '../components/animated_chat_message.dart'; // Add this import
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({Key? key}) : super(key: key);
@@ -50,6 +51,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   // Chat messages
   List<ChatMessage> _messages = [];
   bool _isFirstMessage = true;
+  int _lastAnimatedMessageIndex = -1; // Track the last animated message
   
   @override
   void initState() {
@@ -76,6 +78,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         type: MessageType.response,
       )
     );
+    _lastAnimatedMessageIndex = 0; // Track that we've animated the first message
   }
   
   void _scrollToBottom() {
@@ -129,6 +132,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           type: MessageType.prompt,
         )
       );
+      _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
       _promptController.clear();
     });
     _scrollToBottom();
@@ -141,6 +145,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             type: MessageType.response,
           )
         );
+        _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
       });
       _scrollToBottom();
       return;
@@ -156,6 +161,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           type: MessageType.response,
         )
       );
+      _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
     });
     _scrollToBottom();
     
@@ -185,6 +191,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             type: MessageType.response,
           )
         );
+        _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
       });
       _scrollToBottom();
     } finally {
@@ -227,6 +234,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               type: MessageType.response,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
           
           // Find the future index of this message for toggle functionality
           final futureMessageIndex = _messages.length;
@@ -252,6 +260,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               dietaryRestrictions: _dietaryRestrictions,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
           
           // Add follow-up message
           _messages.add(
@@ -260,6 +269,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               type: MessageType.response,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
           
           _isFirstMessage = false;
         });
@@ -298,6 +308,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               type: MessageType.response,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
           
           // Find the future index of this message for toggle functionality
           final futureMessageIndex = _messages.length;
@@ -323,6 +334,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               dietaryRestrictions: _dietaryRestrictions,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
           
           // Add follow-up message
           _messages.add(
@@ -331,6 +343,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               type: MessageType.response,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
         });
         _scrollToBottom();
       }
@@ -351,6 +364,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             type: MessageType.response,
           )
         );
+        _lastAnimatedMessageIndex = _messages.length - 1;
       });
       _scrollToBottom();
       
@@ -402,6 +416,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               type: MessageType.response,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
         });
         _scrollToBottom();
         
@@ -429,6 +444,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               type: MessageType.response,
             )
           );
+          _lastAnimatedMessageIndex = _messages.length - 1;
         });
         _scrollToBottom();
       }
@@ -457,6 +473,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
             ];
           }
           
+          _lastAnimatedMessageIndex = 0; // Reset animation for the first message
           _isFirstMessage = true;
           _isRecipeGenerated = false;
           _isLoading = false;
@@ -478,7 +495,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
         title: Text(
-          'Create a new recipe', // Changed from 'Recipe Creator'
+          'Create a new recipe',
           style: TextStyle(
             color: Colors.black,
             fontSize: 24,
@@ -526,14 +543,16 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[index];
+                final isNewMessage = index == _lastAnimatedMessageIndex;
                 
+                Widget chatBubble;
                 if (message.type == MessageType.prompt) {
-                  return ChatBubble(
+                  chatBubble = ChatBubble(
                     message: message.content,
                     type: BubbleType.user,
                   );
                 } else if (message.type == MessageType.recipe) {
-                  return ChatBubble(
+                  chatBubble = ChatBubble(
                     message: message.content,
                     type: BubbleType.assistant,
                     child: message.isExpanded ? message.expandedContent : message.extraContent,
@@ -541,21 +560,27 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
                     dietaryRestrictions: message.dietaryRestrictions,
                     onTapExpand: () => _toggleExpandRecipe(index),
                     isExpanded: message.isExpanded,
-                    isRecipe: true, // Add this flag to identify recipe messages
+                    isRecipe: true, 
                   );
                 } else {
-                  return ChatBubble(
+                  chatBubble = ChatBubble(
                     message: message.content,
                     type: BubbleType.assistant,
                   );
                 }
+                
+                // Wrap with animation if it's a new message
+                return AnimatedChatMessage(
+                  child: chatBubble,
+                  isNewMessage: isNewMessage,
+                );
               },
             ),
           ),
           
           // Input area with padding below
           Padding(
-            padding: EdgeInsets.only(bottom: 5), // 5px padding below the input area
+            padding: EdgeInsets.only(bottom: 5),
             child: ChatInput(
               controller: _promptController,
               focusNode: _promptFocusNode,
