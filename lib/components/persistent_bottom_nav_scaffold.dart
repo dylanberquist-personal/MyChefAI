@@ -1,8 +1,8 @@
 // lib/components/persistent_bottom_nav_scaffold.dart
 import 'package:flutter/material.dart';
 import 'footer_nav_bar.dart';
-import '../screens/create_recipe_screen.dart'; // Add this import
-import '../navigation/no_animation_page_route.dart'; // Add this import
+import '../screens/create_recipe_screen.dart'; // Import
+import '../navigation/no_animation_page_route.dart'; // Import
 
 class PersistentBottomNavScaffold extends StatelessWidget {
   final Widget body;
@@ -12,6 +12,7 @@ class PersistentBottomNavScaffold extends StatelessWidget {
   final Color backgroundColor;
   final bool extendBodyBehindAppBar;
   final PreferredSizeWidget? appBar;
+  final bool resizeToAvoidBottomInset; // Add this property
 
   const PersistentBottomNavScaffold({
     Key? key,
@@ -22,6 +23,7 @@ class PersistentBottomNavScaffold extends StatelessWidget {
     this.backgroundColor = Colors.white,
     this.extendBodyBehindAppBar = false,
     this.appBar,
+    this.resizeToAvoidBottomInset = true, // Add default value
   }) : super(key: key);
 
   void _handleNavTap(BuildContext context, int index) {
@@ -53,6 +55,7 @@ class PersistentBottomNavScaffold extends StatelessWidget {
       extendBodyBehindAppBar: extendBodyBehindAppBar,
       appBar: appBar,
       body: body,
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset, // Use the property
       bottomNavigationBar: currentUserId != null
           ? FooterNavBar(
               currentUserId: currentUserId!,

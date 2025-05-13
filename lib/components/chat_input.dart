@@ -19,7 +19,9 @@ class ChatInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // Use AnimatedContainer for smoother transitions
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 200),
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -33,34 +35,45 @@ class ChatInput extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Text field
+          // Text field wrapped in Expanded for layout stability
           Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              maxLines: null,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: isFirstMessage 
-                    ? 'What would you like to cook?' 
-                    : 'Request changes or ask for a new recipe...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(
-                    color: Color(0xFFD3D3D3),
-                    width: 1,
-                  ),
-                ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                filled: true,
-                fillColor: Colors.white,
+            child: Container(
+              constraints: BoxConstraints(
+                minHeight: 48, // Set minimum height to avoid jumping
               ),
-              onSubmitted: (_) => onSend(),
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: null,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: isFirstMessage 
+                      ? 'What would you like to cook?' 
+                      : 'Request changes or ask for a new recipe...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: Color(0xFFD3D3D3),
+                      width: 1,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  filled: true,
+                  fillColor: Colors.white,
+                  isCollapsed: false, // Helps with sizing consistency
+                ),
+                onSubmitted: (_) => onSend(),
+                // Improve text input performance
+                enableSuggestions: false,
+                keyboardAppearance: Brightness.light,
+              ),
             ),
           ),
           SizedBox(width: 8),
-          // Send button
+          // Send button with consistent dimensions
           Container(
+            width: 48, // Fixed width
+            height: 48, // Fixed height
             decoration: BoxDecoration(
               color: Color(0xFFFFFFC1),
               shape: BoxShape.circle,
@@ -71,6 +84,7 @@ class ChatInput extends StatelessWidget {
                 Icons.send,
                 color: isLoading ? Colors.grey : Colors.black,
               ),
+              padding: EdgeInsets.zero, // Remove padding to maintain size
             ),
           ),
         ],
