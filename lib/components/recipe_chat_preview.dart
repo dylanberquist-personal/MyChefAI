@@ -24,11 +24,19 @@ class RecipeChatPreview extends StatelessWidget {
         : _buildPreviewView();
   }
 
+  // Helper to check if a string is a section header (ends with a colon)
+  bool _isSectionHeader(String text) {
+    return text.trim().endsWith(':');
+  }
+
   Widget _buildPreviewView() {
     // Define a consistent left padding for text alignment
     const double textLeftPadding = 32.0;
     // Position for bullet points
     const double bulletLeftPosition = textLeftPadding - 14;
+    
+    // Get first 3 ingredients for preview
+    final previewIngredients = recipe.ingredients.take(3).toList();
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,31 +71,47 @@ class RecipeChatPreview extends StatelessWidget {
           ),
         ),
         SizedBox(height: 4),
-        ...recipe.ingredients.take(3).map((ingredient) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: 4),
-            child: Stack(
-              children: [
-                // Text with consistent padding
-                Padding(
-                  padding: EdgeInsets.only(left: textLeftPadding),
-                  child: Text(
-                    ingredient,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Open Sans',
+        ...previewIngredients.map((ingredient) {
+          // Check if this is a section header
+          if (_isSectionHeader(ingredient)) {
+            return Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 4),
+              child: Text(
+                ingredient,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Open Sans',
+                  fontWeight: FontWeight.w700,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            );
+          } else {
+            return Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Stack(
+                children: [
+                  // Text with consistent padding
+                  Padding(
+                    padding: EdgeInsets.only(left: textLeftPadding),
+                    child: Text(
+                      ingredient,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: 'Open Sans',
+                      ),
                     ),
                   ),
-                ),
-                // Bullet point positioned closer to text
-                Positioned(
-                  left: bulletLeftPosition, // Position bullet closer to text
-                  top: 8, // Vertically center with the text
-                  child: Icon(Icons.circle, size: 8, color: Colors.black87),
-                ),
-              ],
-            ),
-          );
+                  // Bullet point positioned closer to text
+                  Positioned(
+                    left: bulletLeftPosition, // Position bullet closer to text
+                    top: 8, // Vertically center with the text
+                    child: Icon(Icons.circle, size: 8, color: Colors.black87),
+                  ),
+                ],
+              ),
+            );
+          }
         }),
         if (recipe.ingredients.length > 3)
           Row(
@@ -176,31 +200,49 @@ class RecipeChatPreview extends StatelessWidget {
           ),
         ),
         SizedBox(height: 4),
+        
+        // Build ingredients list with special handling for section headers
         ...recipe.ingredients.map((ingredient) {
-          return Padding(
-            padding: EdgeInsets.only(bottom: 4),
-            child: Stack(
-              children: [
-                // Text with consistent padding
-                Padding(
-                  padding: EdgeInsets.only(left: textLeftPadding),
-                  child: Text(
-                    ingredient,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Open Sans',
+          // Check if this is a section header
+          if (_isSectionHeader(ingredient)) {
+            return Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 4),
+              child: Text(
+                ingredient,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Open Sans',
+                  fontWeight: FontWeight.w700,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            );
+          } else {
+            return Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Stack(
+                children: [
+                  // Text with consistent padding
+                  Padding(
+                    padding: EdgeInsets.only(left: textLeftPadding),
+                    child: Text(
+                      ingredient,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontFamily: 'Open Sans',
+                      ),
                     ),
                   ),
-                ),
-                // Bullet point positioned closer to text
-                Positioned(
-                  left: textLeftPadding - 14, // Position bullet closer to text
-                  top: 8, // Vertically center with the text
-                  child: Icon(Icons.circle, size: 8, color: Colors.black87),
-                ),
-              ],
-            ),
-          );
+                  // Bullet point positioned closer to text
+                  Positioned(
+                    left: textLeftPadding - 14, // Position bullet closer to text
+                    top: 8, // Vertically center with the text
+                    child: Icon(Icons.circle, size: 8, color: Colors.black87),
+                  ),
+                ],
+              ),
+            );
+          }
         }),
         SizedBox(height: 16),
         
@@ -214,48 +256,10 @@ class RecipeChatPreview extends StatelessWidget {
           ),
         ),
         SizedBox(height: 8),
-        ...recipe.instructions.asMap().entries.map((entry) {
-          final index = entry.key;
-          final instruction = entry.value;
-          return Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Stack(
-              children: [
-                // Text with consistent padding
-                Padding(
-                  padding: EdgeInsets.only(left: textLeftPadding),
-                  child: Text(
-                    instruction,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Open Sans',
-                    ),
-                  ),
-                ),
-                // Number circle positioned closer to text
-                Positioned(
-                  left: textLeftPadding - 28, // Position number closer to text
-                  top: 0, // Align with text top
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Color(0xFFFFFFC1),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '${index + 1}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
+        
+        // Process instructions with section headers
+        _buildInstructionsWithSections(),
+        
         SizedBox(height: 16),
         
         // Nutrition information
@@ -367,6 +371,93 @@ class RecipeChatPreview extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+  
+  // Helper method to build instructions with section headers
+  Widget _buildInstructionsWithSections() {
+    // Define a consistent left padding for text alignment
+    const double textLeftPadding = 32.0;
+    
+    // Keep track of instruction numbers within each section
+    int currentStepNumber = 1;
+    
+    // Create widgets for each instruction
+    List<Widget> instructionWidgets = [];
+    
+    for (int i = 0; i < recipe.instructions.length; i++) {
+      final instruction = recipe.instructions[i];
+      
+      // Check if this is a section header
+      if (_isSectionHeader(instruction)) {
+        // Reset step number for new section
+        currentStepNumber = 1;
+        
+        instructionWidgets.add(
+          Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              instruction,
+              style: TextStyle(
+                fontSize: 16,
+                fontFamily: 'Open Sans',
+                fontWeight: FontWeight.w700,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        );
+      } else {
+        // Regular instruction step
+        instructionWidgets.add(
+          Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Stack(
+              children: [
+                // Text with consistent padding
+                Padding(
+                  padding: EdgeInsets.only(left: textLeftPadding),
+                  child: Text(
+                    instruction,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Open Sans',
+                    ),
+                  ),
+                ),
+                // Number circle positioned closer to text
+                Positioned(
+                  left: textLeftPadding - 28, // Position number closer to text
+                  top: 0, // Align with text top
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFFFFC1),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${currentStepNumber}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        
+        // Increment step number
+        currentStepNumber++;
+      }
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: instructionWidgets,
     );
   }
 }

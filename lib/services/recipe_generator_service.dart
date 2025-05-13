@@ -1,3 +1,5 @@
+// lib/services/recipe_generator_service.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_keys.dart';
@@ -71,7 +73,10 @@ class RecipeGeneratorService {
       }
     }
     
-    IMPORTANT: Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
+    IMPORTANT: 
+    1. Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
+    2. For ingredients or instructions that have sections (like "For the crust:" or "For the filling:"), include the section header as a separate item in the array with a colon at the end.
+    3. NEVER include numbers (like "1.", "2.", etc.) at the beginning of instruction steps - these will be added automatically by the app.
     
     Ensure all nutrition values are realistic for the recipe type, and provide detailed step-by-step instructions.
     ''';
@@ -128,10 +133,21 @@ class RecipeGeneratorService {
       final Map<String, dynamic> recipeData = jsonDecode(cleanContent);
       final nutritionData = recipeData['nutrition'];
       
+      // Clean instructions to remove any step numbers
+      List<String> cleanedInstructions = List<String>.from(recipeData['instructions']).map((instruction) {
+        // Remove numbering patterns like "1. ", "2) ", "Step 1:", etc.
+        String cleaned = instruction.replaceAll(RegExp(r'^\s*(?:\d+[\.\)]\s*|\bStep\s+\d+[:\.\)]\s*)', caseSensitive: false), '');
+        // Capitalize the first letter if it got lowercased
+        if (cleaned.isNotEmpty) {
+          cleaned = cleaned[0].toUpperCase() + cleaned.substring(1);
+        }
+        return cleaned;
+      }).toList();
+      
       return RecipeGenerationResult(
         title: recipeData['title'],
         ingredients: List<String>.from(recipeData['ingredients']),
-        instructions: List<String>.from(recipeData['instructions']),
+        instructions: cleanedInstructions,
         categoryTags: List<String>.from(recipeData['categoryTags']),
         respectsDietaryRestrictions: recipeData['respectsDietaryRestrictions'] ?? true,
         nutrition: Nutrition(
