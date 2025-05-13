@@ -1,6 +1,7 @@
 // lib/components/recipe_chat_preview.dart
 import 'package:flutter/material.dart';
 import '../services/recipe_generator_service.dart';
+import '../components/category_tags.dart';
 
 class RecipeChatPreview extends StatelessWidget {
   final RecipeGenerationResult recipe;
@@ -31,7 +32,7 @@ class RecipeChatPreview extends StatelessWidget {
         Text(
           recipe.title,
           style: TextStyle(
-            fontSize: 24, // Increased from 20 to 22
+            fontSize: 24,
             fontFamily: 'Open Sans',
             fontWeight: FontWeight.w700,
             color: Color(0xFF030303),
@@ -40,38 +41,14 @@ class RecipeChatPreview extends StatelessWidget {
         SizedBox(height: 12),
         
         // Categories
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: recipe.categoryTags.map((tag) {
-            return Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Color(0xFFFFFFC1).withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Color(0xFFFFFFC1),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                tag,
-                style: TextStyle(
-                  fontSize: 14, // Slightly increased font size
-                  fontFamily: 'Open Sans',
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
+        CategoryTags(tags: recipe.categoryTags),
         SizedBox(height: 16),
         
         // Preview of ingredients (first 3)
         Text(
           'Ingredients:',
           style: TextStyle(
-            fontSize: 18, // Increased from 16 to 18
+            fontSize: 18,
             fontFamily: 'Open Sans',
             fontWeight: FontWeight.w700,
           ),
@@ -89,7 +66,7 @@ class RecipeChatPreview extends StatelessWidget {
                   child: Text(
                     ingredient,
                     style: TextStyle(
-                      fontSize: 16, // Increased from 14 to 16
+                      fontSize: 16,
                       fontFamily: 'Open Sans',
                     ),
                   ),
@@ -102,13 +79,13 @@ class RecipeChatPreview extends StatelessWidget {
           InkWell(
             onTap: onToggleExpand,
             child: Text(
-              '...and ${recipe.ingredients.length - 3} more ingredients',
+              '...and ${recipe.ingredients.length - 3} more ingredients +',  // Added + sign
               style: TextStyle(
-                fontSize: 16, // Increased from 14 to 16
+                fontSize: 16,
                 fontFamily: 'Open Sans',
                 fontStyle: FontStyle.italic,
-                color: Colors.blue,
-                decoration: TextDecoration.underline,
+                color: Color(0xFF673AB7),  // Changed to purple
+                decoration: TextDecoration.none,  // Removed underline
               ),
             ),
           ),
@@ -130,7 +107,7 @@ class RecipeChatPreview extends StatelessWidget {
             child: Text(
               'Save Recipe',
               style: TextStyle(
-                fontSize: 18, // Increased from 16 to 18
+                fontSize: 18,
                 fontFamily: 'Open Sans',
                 fontWeight: FontWeight.w600,
               ),
@@ -142,6 +119,7 @@ class RecipeChatPreview extends StatelessWidget {
   }
 
   Widget _buildExpandedView() {
+    // Expanded view remains unchanged
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -149,7 +127,7 @@ class RecipeChatPreview extends StatelessWidget {
         Text(
           recipe.title,
           style: TextStyle(
-            fontSize: 24, // Increased from 20 to 22
+            fontSize: 24,
             fontFamily: 'Open Sans',
             fontWeight: FontWeight.w700,
             color: Color(0xFF030303),
@@ -158,38 +136,14 @@ class RecipeChatPreview extends StatelessWidget {
         SizedBox(height: 12),
         
         // Categories
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: recipe.categoryTags.map((tag) {
-            return Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Color(0xFFFFFFC1).withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Color(0xFFFFFFC1),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                tag,
-                style: TextStyle(
-                  fontSize: 14, // Slightly increased font size
-                  fontFamily: 'Open Sans',
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
+        CategoryTags(tags: recipe.categoryTags),
         SizedBox(height: 16),
         
         // All ingredients
         Text(
           'Ingredients:',
           style: TextStyle(
-            fontSize: 18, // Increased from 16 to 18
+            fontSize: 18,
             fontFamily: 'Open Sans',
             fontWeight: FontWeight.w700,
           ),
@@ -207,7 +161,7 @@ class RecipeChatPreview extends StatelessWidget {
                   child: Text(
                     ingredient,
                     style: TextStyle(
-                      fontSize: 16, // Increased from 14 to 16
+                      fontSize: 16,
                       fontFamily: 'Open Sans',
                     ),
                   ),
@@ -222,7 +176,7 @@ class RecipeChatPreview extends StatelessWidget {
         Text(
           'Instructions:',
           style: TextStyle(
-            fontSize: 18, // Increased from 16 to 18
+            fontSize: 18,
             fontFamily: 'Open Sans',
             fontWeight: FontWeight.w700,
           ),
@@ -256,7 +210,7 @@ class RecipeChatPreview extends StatelessWidget {
                   child: Text(
                     instruction,
                     style: TextStyle(
-                      fontSize: 16, // Increased from 14 to 16
+                      fontSize: 16,
                       fontFamily: 'Open Sans',
                     ),
                   ),
@@ -271,7 +225,7 @@ class RecipeChatPreview extends StatelessWidget {
         Text(
           'Nutrition (per serving):',
           style: TextStyle(
-            fontSize: 18, // Increased from 16 to 18
+            fontSize: 18,
             fontFamily: 'Open Sans',
             fontWeight: FontWeight.w700,
           ),
@@ -280,7 +234,7 @@ class RecipeChatPreview extends StatelessWidget {
         Text(
           'Serving size: ${recipe.nutrition.servingSize}',
           style: TextStyle(
-            fontSize: 16, // Increased from 14 to 16
+            fontSize: 16,
             fontFamily: 'Open Sans',
             fontStyle: FontStyle.italic,
           ),
@@ -346,7 +300,7 @@ class RecipeChatPreview extends StatelessWidget {
             child: Text(
               'Save Recipe',
               style: TextStyle(
-                fontSize: 18, // Increased from 16 to 18
+                fontSize: 18,
                 fontFamily: 'Open Sans',
                 fontWeight: FontWeight.w600,
               ),
@@ -362,7 +316,7 @@ class RecipeChatPreview extends StatelessWidget {
             icon: Icon(Icons.keyboard_arrow_up, size: 18),
             label: Text(
               'View Less',
-              style: TextStyle(fontSize: 16), // Increased font size
+              style: TextStyle(fontSize: 16),
             ),
             style: TextButton.styleFrom(
               foregroundColor: Colors.grey[700],

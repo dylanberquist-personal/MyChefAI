@@ -11,7 +11,8 @@ class CategoryTags extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
+      spacing: 8,        // Keep the horizontal spacing at 8
+      runSpacing: 8,    // Set vertical spacing to 10 (halfway between 8 and 12)
       children: tags
           .map((tag) => Container(
                 decoration: BoxDecoration(
