@@ -68,10 +68,11 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
 
   void _addInitialMessages() {
-    // Add initial greeting message
+    // Add initial consolidated greeting message (with placeholder for dietary restrictions)
+    // The dietary info will be updated after fetching user profile
     _messages.add(
       ChatMessage(
-        content: 'Hi there! I\'m your recipe assistant. Tell me what you\'d like to cook, and I\'ll create a recipe for you. Feel free to mention any ingredients, cuisine type, or dietary preferences!',
+        content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you.',
         type: MessageType.response,
       )
     );
@@ -103,14 +104,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
           _dietaryRestrictions = profile.dietaryRestrictions;
         });
         
-        // Add dietary restriction message if any
+        // Update the greeting message with dietary restrictions if they exist
         if (_dietaryRestrictions.isNotEmpty) {
-          _messages.add(
-            ChatMessage(
-              content: 'I noticed you have dietary preferences: $_dietaryRestrictions. I\'ll make sure to account for these in your recipes!',
+          setState(() {
+            _messages[0] = ChatMessage(
+              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: $_dietaryRestrictions.',
               type: MessageType.response,
-            )
-          );
+            );
+          });
         }
       }
     }
@@ -439,21 +440,21 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
       context: context,
       onRestartConfirmed: () {
         setState(() {
-          _messages = [
-            ChatMessage(
-              content: 'Hi there! I\'m your recipe assistant. Tell me what you\'d like to cook, and I\'ll create a recipe for you. Feel free to mention any ingredients, cuisine type, or dietary preferences!',
-              type: MessageType.response,
-            )
-          ];
-          
-          // Add dietary restriction message if any
-          if (_dietaryRestrictions.isNotEmpty) {
-            _messages.add(
+          // Use the consolidated message style
+          if (_dietaryRestrictions.isEmpty) {
+            _messages = [
               ChatMessage(
-                content: 'I noticed you have dietary preferences: $_dietaryRestrictions. I\'ll make sure to account for these in your recipes!',
+                content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you.',
                 type: MessageType.response,
               )
-            );
+            ];
+          } else {
+            _messages = [
+              ChatMessage(
+                content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: $_dietaryRestrictions.',
+                type: MessageType.response,
+              )
+            ];
           }
           
           _isFirstMessage = true;
@@ -477,7 +478,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: Colors.black),
         title: Text(
-          'Recipe Creator', // Changed from 'Recipe Assistant'
+          'Create a new recipe', // Changed from 'Recipe Creator'
           style: TextStyle(
             color: Colors.black,
             fontSize: 24,
