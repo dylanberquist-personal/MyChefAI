@@ -293,76 +293,83 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
   }
   
   Future<void> _modifyExistingRecipe(String prompt) async {
-    try {
-      final result = await RecipeGeneratorService.generateRecipe(
-        prompt,
-        _dietaryRestrictions.isNotEmpty ? _dietaryRestrictions : null
-      );
-      
-      if (mounted) {
-        setState(() {
-          _generatedTitle = result.title;
-          _generatedIngredients = result.ingredients;
-          _generatedInstructions = result.instructions;
-          _generatedCategoryTags = result.categoryTags;
-          _respectsDietaryRestrictions = result.respectsDietaryRestrictions;
-          _generatedRecipe = result;
-          _isRecipeGenerated = true;
-          _isLoading = false;
-          
-          // Remove loading message
-          _messages.removeLast();
-          
-          // Add modified recipe message
-          _messages.add(
-            ChatMessage(
-              content: 'I\'ve updated the recipe based on your feedback. Here\'s the new version:',
-              type: MessageType.response,
-            )
-          );
-          _lastAnimatedMessageIndex = _messages.length - 1;
-          
-          // Find the future index of this message for toggle functionality
-          final futureMessageIndex = _messages.length;
-          
-          // Add recipe as a special message
-          _messages.add(
-            ChatMessage(
-              content: result.title,
-              type: MessageType.recipe,
-              extraContent: RecipeChatPreview(
-                recipe: result,
-                isExpanded: false,
-                onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
-                onSave: _saveRecipe,
-              ),
-              expandedContent: RecipeChatPreview(
-                recipe: result,
-                isExpanded: true,
-                onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
-                onSave: _saveRecipe,
-              ),
-              respectsDietaryRestrictions: result.respectsDietaryRestrictions,
-              dietaryRestrictions: _dietaryRestrictions,
-            )
-          );
-          _lastAnimatedMessageIndex = _messages.length - 1;
-          
-          // Add follow-up message
-          _messages.add(
-            ChatMessage(
-              content: 'How does this look? You can ask for more changes or save this recipe.',
-              type: MessageType.response,
-            )
-          );
-          _lastAnimatedMessageIndex = _messages.length - 1;
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      throw e;
+  try {
+    // Pass the current recipe details as context for the modification
+    final result = await RecipeGeneratorService.modifyRecipe(
+      prompt,
+      _dietaryRestrictions.isNotEmpty ? _dietaryRestrictions : null,
+      RecipeModificationContext(
+        title: _generatedTitle,
+        ingredients: _generatedIngredients,
+        instructions: _generatedInstructions,
+        categoryTags: _generatedCategoryTags,
+      ),
+    );
+    
+    if (mounted) {
+      setState(() {
+        _generatedTitle = result.title;
+        _generatedIngredients = result.ingredients;
+        _generatedInstructions = result.instructions;
+        _generatedCategoryTags = result.categoryTags;
+        _respectsDietaryRestrictions = result.respectsDietaryRestrictions;
+        _generatedRecipe = result;
+        _isRecipeGenerated = true;
+        _isLoading = false;
+        
+        // Remove loading message
+        _messages.removeLast();
+        
+        // Add modified recipe message
+        _messages.add(
+          ChatMessage(
+            content: 'I\'ve updated the recipe based on your feedback. Here\'s the new version:',
+            type: MessageType.response,
+          )
+        );
+        _lastAnimatedMessageIndex = _messages.length - 1;
+        
+        // Find the future index of this message for toggle functionality
+        final futureMessageIndex = _messages.length;
+        
+        // Add recipe as a special message
+        _messages.add(
+          ChatMessage(
+            content: result.title,
+            type: MessageType.recipe,
+            extraContent: RecipeChatPreview(
+              recipe: result,
+              isExpanded: false,
+              onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
+              onSave: _saveRecipe,
+            ),
+            expandedContent: RecipeChatPreview(
+              recipe: result,
+              isExpanded: true,
+              onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
+              onSave: _saveRecipe,
+            ),
+            respectsDietaryRestrictions: result.respectsDietaryRestrictions,
+            dietaryRestrictions: _dietaryRestrictions,
+          )
+        );
+        _lastAnimatedMessageIndex = _messages.length - 1;
+        
+        // Add follow-up message
+        _messages.add(
+          ChatMessage(
+            content: 'How does this look? You can ask for more changes or save this recipe.',
+            type: MessageType.response,
+          )
+        );
+        _lastAnimatedMessageIndex = _messages.length - 1;
+      });
+      _scrollToBottom();
     }
+  } catch (e) {
+    throw e;
   }
+}
   
   Future<void> _saveRecipe() async {
     if (_currentUserProfile == null || !_isRecipeGenerated) return;

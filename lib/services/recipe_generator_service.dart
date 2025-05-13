@@ -23,7 +23,23 @@ class RecipeGenerationResult {
   });
 }
 
+// New class to hold previous recipe context for modifications
+class RecipeModificationContext {
+  final String title;
+  final List<String> ingredients;
+  final List<String> instructions;
+  final List<String> categoryTags;
+
+  RecipeModificationContext({
+    required this.title,
+    required this.ingredients,
+    required this.instructions,
+    required this.categoryTags,
+  });
+}
+
 class RecipeGeneratorService {
+  // Original method for generating a new recipe
   static Future<RecipeGenerationResult> generateRecipe(String prompt, String? dietaryRestrictions) async {
     // Add dietary restrictions to the prompt if available
     String dietaryPrompt = '';
@@ -81,6 +97,98 @@ class RecipeGeneratorService {
     Ensure all nutrition values are realistic for the recipe type, and provide detailed step-by-step instructions.
     ''';
     
+    // Make API request and process as before
+    return await _makeRecipeRequest(requestPrompt);
+  }
+
+  // New method for modifying an existing recipe
+  static Future<RecipeGenerationResult> modifyRecipe(
+    String prompt, 
+    String? dietaryRestrictions,
+    RecipeModificationContext context
+  ) async {
+    // Add dietary restrictions to the prompt if available
+    String dietaryPrompt = '';
+    if (dietaryRestrictions != null && dietaryRestrictions.isNotEmpty) {
+      dietaryPrompt = '''
+      IMPORTANT: This recipe MUST respect the following dietary restrictions/preferences:
+      ${dietaryRestrictions}
+      
+      Do not include any ingredients that violate these restrictions. All ingredients and preparation methods must be fully compatible with these dietary needs.
+      ''';
+    }
+    
+    // Format the context for the API prompt
+    final String contextString = '''
+    Here is the current recipe to modify:
+    
+    TITLE: ${context.title}
+    
+    INGREDIENTS:
+    ${context.ingredients.map((i) => "- $i").join('\n')}
+    
+    INSTRUCTIONS:
+    ${context.instructions.map((i) => "- $i").join('\n')}
+    
+    CATEGORY TAGS:
+    ${context.categoryTags.join(', ')}
+    ''';
+    
+    // Prepare the request prompt
+    final String requestPrompt = '''
+    Please modify the existing recipe based on the following request: "${prompt.trim()}"
+    
+    ${contextString}
+    
+    ${dietaryPrompt}
+    
+    Make appropriate changes to the recipe while maintaining its core identity unless specifically requested otherwise. Apply the modifications intelligently.
+    
+    Format your response as a JSON object with the following structure:
+    {
+      "title": "Recipe Title",
+      "ingredients": ["Ingredient 1", "Ingredient 2", ...],
+      "instructions": ["Step 1", "Step 2", ...],
+      "categoryTags": ["Tag1", "Tag2", ...] (limit to 5 tags),
+      "respectsDietaryRestrictions": true/false (whether this recipe respects the user's dietary restrictions),
+      "nutrition": {
+        "numberOfServings": 4,
+        "caloriesPerServing": 300,
+        "carbs": 30.5,
+        "protein": 15.2,
+        "fat": 12.1,
+        "saturatedFat": 5.2,
+        "polyunsaturatedFat": 2.1,
+        "monounsaturatedFat": 4.8,
+        "transFat": 0.0,
+        "cholesterol": 25.0,
+        "sodium": 500.0,
+        "potassium": 350.0,
+        "fiber": 4.5,
+        "sugar": 8.2,
+        "vitaminA": 20.0,
+        "vitaminC": 35.0,
+        "calcium": 120.0,
+        "iron": 3.0,
+        "unit": "g",
+        "servingSize": "1 cup (240g)"
+      }
+    }
+    
+    IMPORTANT: 
+    1. Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
+    2. For ingredients or instructions that have sections (like "For the crust:" or "For the filling:"), include the section header as a separate item in the array with a colon at the end.
+    3. NEVER include numbers (like "1.", "2.", etc.) at the beginning of instruction steps - these will be added automatically by the app.
+    
+    Ensure all nutrition values are realistic for the recipe type, and provide detailed step-by-step instructions.
+    ''';
+    
+    // Make API request and process as before
+    return await _makeRecipeRequest(requestPrompt);
+  }
+
+  // Extracted common API request handling
+  static Future<RecipeGenerationResult> _makeRecipeRequest(String requestPrompt) async {
     // Make the API request
     final response = await http.post(
       Uri.parse('https://api.openai.com/v1/chat/completions'),
