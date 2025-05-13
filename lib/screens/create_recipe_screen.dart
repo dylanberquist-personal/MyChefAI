@@ -1,5 +1,6 @@
 // lib/screens/create_recipe_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart'; // For ScrollDirection
 import 'dart:async';
 import '../models/profile.dart';
 import '../models/recipe.dart';
@@ -16,7 +17,7 @@ import '../components/chat_input.dart';
 import '../components/recipe_chat_preview.dart';
 import '../components/restart_chat_dialog.dart';
 import '../components/loading_message_manager.dart';
-import '../components/animated_chat_message.dart'; // Add this import
+import '../components/animated_chat_message.dart';
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({Key? key}) : super(key: key);
@@ -58,6 +59,17 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
     super.initState();
     _fetchCurrentUser();
     _addInitialMessages();
+    
+    // Add listener to scroll controller to dismiss keyboard when scrolling down
+    _scrollController.addListener(_onScroll);
+  }
+  
+  // Dismiss keyboard when scrolling down
+  void _onScroll() {
+    if (_scrollController.position.userScrollDirection == ScrollDirection.forward) {
+      // User is scrolling down (swiping up), hide keyboard
+      _promptFocusNode.unfocus();
+    }
   }
   
   @override
@@ -527,63 +539,69 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> {
         surfaceTintColor: Colors.white,
         shadowColor: Colors.transparent,
       ),
-      body: Column(
-        children: [
-          // Chat messages area
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                final isNewMessage = index == _lastAnimatedMessageIndex;
-                
-                Widget chatBubble;
-                if (message.type == MessageType.prompt) {
-                  chatBubble = ChatBubble(
-                    message: message.content,
-                    type: BubbleType.user,
+      body: GestureDetector(
+        // Add GestureDetector to dismiss keyboard when tapping outside
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Column(
+          children: [
+            // Chat messages area
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: EdgeInsets.all(16),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  final message = _messages[index];
+                  final isNewMessage = index == _lastAnimatedMessageIndex;
+                  
+                  Widget chatBubble;
+                  if (message.type == MessageType.prompt) {
+                    chatBubble = ChatBubble(
+                      message: message.content,
+                      type: BubbleType.user,
+                    );
+                  } else if (message.type == MessageType.recipe) {
+                    chatBubble = ChatBubble(
+                      message: message.content,
+                      type: BubbleType.assistant,
+                      child: message.isExpanded ? message.expandedContent : message.extraContent,
+                      respectsDietaryRestrictions: message.respectsDietaryRestrictions,
+                      dietaryRestrictions: message.dietaryRestrictions,
+                      onTapExpand: () => _toggleExpandRecipe(index),
+                      isExpanded: message.isExpanded,
+                      isRecipe: true, 
+                    );
+                  } else {
+                    chatBubble = ChatBubble(
+                      message: message.content,
+                      type: BubbleType.assistant,
+                    );
+                  }
+                  
+                  // Wrap with animation if it's a new message
+                  return AnimatedChatMessage(
+                    child: chatBubble,
+                    isNewMessage: isNewMessage,
                   );
-                } else if (message.type == MessageType.recipe) {
-                  chatBubble = ChatBubble(
-                    message: message.content,
-                    type: BubbleType.assistant,
-                    child: message.isExpanded ? message.expandedContent : message.extraContent,
-                    respectsDietaryRestrictions: message.respectsDietaryRestrictions,
-                    dietaryRestrictions: message.dietaryRestrictions,
-                    onTapExpand: () => _toggleExpandRecipe(index),
-                    isExpanded: message.isExpanded,
-                    isRecipe: true, 
-                  );
-                } else {
-                  chatBubble = ChatBubble(
-                    message: message.content,
-                    type: BubbleType.assistant,
-                  );
-                }
-                
-                // Wrap with animation if it's a new message
-                return AnimatedChatMessage(
-                  child: chatBubble,
-                  isNewMessage: isNewMessage,
-                );
-              },
+                },
+              ),
             ),
-          ),
-          
-          // Input area with padding below
-          Padding(
-            padding: EdgeInsets.only(bottom: 5),
-            child: ChatInput(
-              controller: _promptController,
-              focusNode: _promptFocusNode,
-              isLoading: _isLoading,
-              isFirstMessage: _isFirstMessage,
-              onSend: _handleSendPrompt,
+            
+            // Input area with padding below
+            Padding(
+              padding: EdgeInsets.only(bottom: 5),
+              child: ChatInput(
+                controller: _promptController,
+                focusNode: _promptFocusNode,
+                isLoading: _isLoading,
+                isFirstMessage: _isFirstMessage,
+                onSend: _handleSendPrompt,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
