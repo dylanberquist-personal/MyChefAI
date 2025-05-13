@@ -41,6 +41,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   Profile? _currentUserProfile;
   bool _isLoading = false;
   bool _isRecipeGenerated = false;
+  bool _isSavingRecipe = false;  // New state variable for saving state
   String _dietaryRestrictions = '';
   
   // Generated recipe data
@@ -110,7 +111,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
     // Add initial consolidated greeting message (with placeholder for dietary restrictions)
     _messages.add(
       ChatMessage(
-        content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you.',
+        content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. Each chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
         type: MessageType.response,
       )
     );
@@ -128,31 +129,31 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   }
   
   Future<void> _fetchCurrentUser() async {
-    final user = await _authService.getCurrentUser();
-    if (user != null) {
+  final user = await _authService.getCurrentUser();
+  if (user != null) {
+    setState(() {
+      _currentUserId = user.uid;
+    });
+    
+    final profile = await _profileService.getProfileById(user.uid);
+    if (profile != null) {
       setState(() {
-        _currentUserId = user.uid;
+        _currentUserProfile = profile;
+        _dietaryRestrictions = profile.dietaryRestrictions;
       });
       
-      final profile = await _profileService.getProfileById(user.uid);
-      if (profile != null) {
+      // Update the greeting message with dietary restrictions if they exist
+      if (_dietaryRestrictions.isNotEmpty) {
         setState(() {
-          _currentUserProfile = profile;
-          _dietaryRestrictions = profile.dietaryRestrictions;
+          _messages[0] = ChatMessage(
+            content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: ${_dietaryRestrictions}.\n\nEach chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
+            type: MessageType.response,
+          );
         });
-        
-        // Update the greeting message with dietary restrictions if they exist
-        if (_dietaryRestrictions.isNotEmpty) {
-          setState(() {
-            _messages[0] = ChatMessage(
-              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: $_dietaryRestrictions.',
-              type: MessageType.response,
-            );
-          });
-        }
       }
     }
   }
+}
   
   Future<void> _handleSendPrompt() async {
     final prompt = _promptController.text.trim();
@@ -239,7 +240,6 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
     });
   }
   
-  // Rest of the methods stay the same...
   Future<void> _generateNewRecipe(String prompt) async {
     try {
       // Use the recipe generator service
@@ -284,12 +284,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
                 isExpanded: false,
                 onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
                 onSave: _saveRecipe,
+                isSaving: _isSavingRecipe,
               ),
               expandedContent: RecipeChatPreview(
                 recipe: result,
                 isExpanded: true,
                 onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
                 onSave: _saveRecipe,
+                isSaving: _isSavingRecipe,
               ),
               respectsDietaryRestrictions: result.respectsDietaryRestrictions,
               dietaryRestrictions: _dietaryRestrictions,
@@ -365,12 +367,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
                 isExpanded: false,
                 onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
                 onSave: _saveRecipe,
+                isSaving: _isSavingRecipe,
               ),
               expandedContent: RecipeChatPreview(
                 recipe: result,
                 isExpanded: true,
                 onToggleExpand: () => _toggleExpandRecipe(futureMessageIndex),
                 onSave: _saveRecipe,
+                isSaving: _isSavingRecipe,
               ),
               respectsDietaryRestrictions: result.respectsDietaryRestrictions,
               dietaryRestrictions: _dietaryRestrictions,
@@ -400,6 +404,36 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
     try {
       setState(() {
         _isLoading = true;
+        _isSavingRecipe = true; // Set to true when saving starts
+
+        // Find the recipe message and update it with the saving state
+        for (int i = 0; i < _messages.length; i++) {
+          if (_messages[i].type == MessageType.recipe) {
+            final message = _messages[i];
+            _messages[i] = ChatMessage(
+              content: message.content,
+              type: MessageType.recipe,
+              extraContent: RecipeChatPreview(
+                recipe: _generatedRecipe,
+                isExpanded: false,
+                onToggleExpand: () => _toggleExpandRecipe(i),
+                onSave: _saveRecipe,
+                isSaving: true, // Set to true
+              ),
+              expandedContent: RecipeChatPreview(
+                recipe: _generatedRecipe,
+                isExpanded: true,
+                onToggleExpand: () => _toggleExpandRecipe(i),
+                onSave: _saveRecipe,
+                isSaving: true, // Set to true
+              ),
+              respectsDietaryRestrictions: message.respectsDietaryRestrictions,
+              dietaryRestrictions: message.dietaryRestrictions,
+              isExpanded: message.isExpanded,
+            );
+          }
+        }
+        
         _messages.add(
           ChatMessage(
             content: 'Saving your recipe...',
@@ -449,6 +483,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _isSavingRecipe = false; // Reset saving state
           // Remove "Saving..." message
           _messages.removeLast();
           // Add success message
@@ -477,6 +512,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _isSavingRecipe = false; // Reset saving state
           // Remove "Saving..." message
           _messages.removeLast();
           // Add error message
@@ -494,35 +530,36 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   }
   
   void _restartChat() {
-    RestartChatDialog.show(
-      context: context,
-      onRestartConfirmed: () {
-        setState(() {
-          // Use the consolidated message style
-          if (_dietaryRestrictions.isEmpty) {
-            _messages = [
-              ChatMessage(
-                content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you.',
-                type: MessageType.response,
-              )
-            ];
-          } else {
-            _messages = [
-              ChatMessage(
-                content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: $_dietaryRestrictions.',
-                type: MessageType.response,
-              )
-            ];
-          }
-          
-          _lastAnimatedMessageIndex = 0; // Reset animation for the first message
-          _isFirstMessage = true;
-          _isRecipeGenerated = false;
-          _isLoading = false;
-        });
-      }
-    );
-  }
+  RestartChatDialog.show(
+    context: context,
+    onRestartConfirmed: () {
+      setState(() {
+        // Use the consolidated message style
+        if (_dietaryRestrictions.isEmpty) {
+          _messages = [
+            ChatMessage(
+              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. Each chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
+              type: MessageType.response,
+            )
+          ];
+        } else {
+          _messages = [
+            ChatMessage(
+              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: ${_dietaryRestrictions}.\n\nEach chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
+              type: MessageType.response,
+            )
+          ];
+        }
+        
+        _lastAnimatedMessageIndex = 0; // Reset animation for the first message
+        _isFirstMessage = true;
+        _isRecipeGenerated = false;
+        _isLoading = false;
+        _isSavingRecipe = false; // Reset saving state
+      });
+    }
+  );
+}
 
   @override
   Widget build(BuildContext context) {

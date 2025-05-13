@@ -8,6 +8,7 @@ class RecipeChatPreview extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback onToggleExpand;
   final VoidCallback onSave;
+  final bool isSaving; // Add this parameter
 
   const RecipeChatPreview({
     Key? key,
@@ -15,6 +16,7 @@ class RecipeChatPreview extends StatelessWidget {
     required this.isExpanded,
     required this.onToggleExpand,
     required this.onSave,
+    this.isSaving = false, // Default to false
   }) : super(key: key);
 
   @override
@@ -136,27 +138,50 @@ class RecipeChatPreview extends StatelessWidget {
           ),
         SizedBox(height: 16),
         
-        // Button to save recipe
+        // Button to save recipe - updated to show saving state
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: onSave,
+            onPressed: isSaving ? null : onSave,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFFFFFFC1),
+              backgroundColor: isSaving ? Colors.grey[300] : Color(0xFFFFFFC1),
               foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
               padding: EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text(
-              'Save Recipe',
-              style: TextStyle(
-                fontSize: 18,
-                fontFamily: 'Open Sans',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: isSaving
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Saving Recipe...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontFamily: 'Open Sans',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    'Save Recipe',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Open Sans',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
       ],
@@ -331,27 +356,50 @@ class RecipeChatPreview extends StatelessWidget {
         ),
         SizedBox(height: 16),
         
-        // Button to save recipe
+        // Button to save recipe - updated to show saving state
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: onSave,
+            onPressed: isSaving ? null : onSave,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFFFFFFC1),
+              backgroundColor: isSaving ? Colors.grey[300] : Color(0xFFFFFFC1),
               foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(24),
               ),
               padding: EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text(
-              'Save Recipe',
-              style: TextStyle(
-                fontSize: 18,
-                fontFamily: 'Open Sans',
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: isSaving
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Saving Recipe...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontFamily: 'Open Sans',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    'Save Recipe',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Open Sans',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
         
