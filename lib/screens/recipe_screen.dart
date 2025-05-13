@@ -1,4 +1,9 @@
+// lib/screens/recipe_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../models/recipe.dart';
 import '../models/profile.dart';
 import '../components/profile_block.dart';
@@ -14,9 +19,10 @@ import '../navigation/no_animation_page_route.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/recipe_service.dart';
+import '../services/storage_service.dart';
 import '../screens/profile_screen.dart';
 import '../screens/home_screen.dart';
-import '../screens/create_recipe_screen.dart'; // Add this import
+import '../screens/create_recipe_screen.dart';
 
 class RecipeScreen extends StatefulWidget {
   final Recipe recipe;
@@ -32,9 +38,14 @@ class _RecipeScreenState extends State<RecipeScreen> {
   final AuthService _authService = AuthService();
   final ProfileService _profileService = ProfileService();
   final RecipeService _recipeService = RecipeService();
+  final StorageService _storageService = StorageService();
+  final ImagePicker _picker = ImagePicker();
   String? _currentUserId;
   Profile? _creatorProfile;
   bool _isLoading = true;
+  bool _isUploadingImage = false;
+  File? _selectedImage;
+  String? _newImageUrl; // Add a variable to store the new image URL
   late Recipe _currentRecipe;
   
   @override
@@ -122,6 +133,127 @@ class _RecipeScreenState extends State<RecipeScreen> {
       setState(() {
         _creatorProfile = _currentRecipe.creator;
       });
+    }
+  }
+
+  // New method to pick an image
+  Future<void> _pickImage() async {
+    if (_currentUserId == null || _currentRecipe.id == null) {
+      return;
+    }
+
+    // Check if user is the recipe owner
+    if (_currentUserId != _currentRecipe.creator.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Only the recipe creator can change the image')),
+      );
+      return;
+    }
+
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80, // Reduce image quality to save storage
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+          _isUploadingImage = true; // Start showing loading state immediately
+        });
+        await _uploadRecipeImage();
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick image: $e')),
+      );
+    }
+  }
+
+  // New method to upload the recipe image
+  Future<void> _uploadRecipeImage() async {
+    if (_selectedImage == null || _currentRecipe.id == null) {
+      return;
+    }
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Uploading recipe image...'),
+            ],
+          ),
+          duration: Duration(minutes: 1),
+        ),
+      );
+
+      // Create a path based on recipe ID
+      final imageUrl = await _storageService.uploadRecipeImage(
+        _currentRecipe.id!,
+        _selectedImage!,
+      );
+
+      // Save the new image URL but don't update the UI yet
+      _newImageUrl = imageUrl;
+
+      // Preload the image
+      final imageProvider = NetworkImage(imageUrl);
+      await precacheImage(imageProvider, context);
+
+      // Update recipe with new image URL
+      final updatedRecipe = Recipe(
+        id: _currentRecipe.id,
+        title: _currentRecipe.title,
+        image: imageUrl,
+        ingredients: _currentRecipe.ingredients,
+        instructions: _currentRecipe.instructions,
+        categoryTags: _currentRecipe.categoryTags,
+        creator: _currentRecipe.creator,
+        averageRating: _currentRecipe.averageRating,
+        numberOfRatings: _currentRecipe.numberOfRatings,
+        numberOfFavorites: _currentRecipe.numberOfFavorites,
+        nutritionInfo: _currentRecipe.nutritionInfo,
+        isPublic: _currentRecipe.isPublic,
+        isFavorited: _currentRecipe.isFavorited,
+        createdAt: _currentRecipe.createdAt,
+      );
+
+      await _recipeService.updateRecipe(updatedRecipe);
+      
+      // Now update the UI with the new image
+      if (mounted) {
+        setState(() {
+          _currentRecipe = updatedRecipe;
+          _isUploadingImage = false;
+        });
+      }
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recipe image updated successfully!')),
+      );
+    } catch (e) {
+      print('Error uploading recipe image: $e');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+      // Show a user-friendly error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update recipe image. Please make sure you have permission to edit this recipe.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+          _selectedImage = null; // Clear the selected image on error
+        });
+      }
     }
   }
 
@@ -245,7 +377,6 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
   
-  // Add method to navigate to CreateRecipeScreen
   void _navigateToCreateRecipe() {
     Navigator.push(
       context,
@@ -301,6 +432,43 @@ class _RecipeScreenState extends State<RecipeScreen> {
             ),
           ),
         ),
+        
+        // Change Image Option - only for recipe owners
+        if (isOwner)
+          PopupMenuItem(
+            height: 48, // Reduced height from 56
+            padding: EdgeInsets.zero, // Remove default padding
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.zero,
+                  bottom: Radius.zero,
+                ),
+              ),
+              child: ListTile(
+                dense: true, // Makes the ListTile more compact
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
+                leading: Icon(
+                  Icons.image,
+                  color: Colors.blue,
+                  size: 22, // Slightly smaller icon
+                ),
+                title: Text(
+                  'Change Image',
+                  style: TextStyle(
+                    fontFamily: 'Open Sans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF030303),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage();
+                },
+              ),
+            ),
+          ),
         
         // Public/Private Toggle - only for recipe owners
         if (isOwner)
@@ -366,6 +534,9 @@ class _RecipeScreenState extends State<RecipeScreen> {
       );
     }
 
+    // Check if user is the recipe owner for the image picker
+    final isOwner = _isRecipeOwner();
+
     return PersistentBottomNavScaffold(
       currentUserId: _currentUserId,
       backgroundColor: Colors.white,
@@ -392,22 +563,105 @@ class _RecipeScreenState extends State<RecipeScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  _currentRecipe.image ?? 'assets/images/recipe_image_placeholder.png',
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      'assets/images/recipe_image_placeholder.png',
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Image area with improved handling
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: _isUploadingImage
+                        // Show placeholder or selected image during upload
+                        ? (_selectedImage != null
+                            ? Image.file(
+                                _selectedImage!,
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.asset(
+                                'assets/images/recipe_image_placeholder.png',
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ))
+                        // Show network image when not uploading
+                        : (_currentRecipe.image != null && _currentRecipe.image!.isNotEmpty
+                            ? FadeInImage.assetNetwork(
+                                placeholder: 'assets/images/recipe_image_placeholder.png',
+                                image: _currentRecipe.image!,
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                imageErrorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    'assets/images/recipe_image_placeholder.png',
+                                    height: 200,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                'assets/images/recipe_image_placeholder.png',
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              )),
+                  ),
+                  
+                  // Loading overlay during upload
+                  if (_isUploadingImage)
+                    Container(
                       height: 200,
                       width: double.infinity,
-                      fit: BoxFit.cover,
-                    );
-                  },
-                ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    ),
+                  
+                  // Camera icon for recipe owner
+                  if (isOwner)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: _isUploadingImage ? null : _pickImage,
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _isUploadingImage 
+                                ? Colors.grey.withOpacity(0.8) 
+                                : Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: _isUploadingImage
+                              ? SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.black,
+                                  size: 24,
+                                ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
