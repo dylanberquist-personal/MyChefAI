@@ -93,6 +93,7 @@ class RecipeGeneratorService {
     1. Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
     2. For ingredients or instructions that have sections (like "For the crust:" or "For the filling:"), include the section header as a separate item in the array with a colon at the end.
     3. NEVER include numbers (like "1.", "2.", etc.) at the beginning of instruction steps - these will be added automatically by the app.
+    4. You can use special characters, such as degree symbols (°), fractions (½, ¼, etc.), and non-English letters with accents.
     
     Ensure all nutrition values are realistic for the recipe type, and provide detailed step-by-step instructions.
     ''';
@@ -179,6 +180,7 @@ class RecipeGeneratorService {
     1. Return ONLY the JSON object without any markdown formatting, explanation, or code blocks.
     2. For ingredients or instructions that have sections (like "For the crust:" or "For the filling:"), include the section header as a separate item in the array with a colon at the end.
     3. NEVER include numbers (like "1.", "2.", etc.) at the beginning of instruction steps - these will be added automatically by the app.
+    4. You can use special characters, such as degree symbols (°), fractions (½, ¼, etc.), and non-English letters with accents.
     
     Ensure all nutrition values are realistic for the recipe type, and provide detailed step-by-step instructions.
     ''';
@@ -201,7 +203,7 @@ class RecipeGeneratorService {
         'messages': [
           {
             'role': 'system',
-            'content': 'You are a professional chef who creates detailed, accurate recipes. You always respond with valid JSON only, no markdown formatting.'
+            'content': 'You are a professional chef who creates detailed, accurate recipes. You always respond with valid JSON only, no markdown formatting. You can use special characters like degrees (°), fractions (½), and accented characters (é,è,ñ,etc.) in your recipes.'
           },
           {
             'role': 'user',
@@ -214,7 +216,9 @@ class RecipeGeneratorService {
     );
     
     if (response.statusCode == 200) {
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      // Ensure proper UTF-8 decoding
+      final String responseBody = utf8.decode(response.bodyBytes);
+      final Map<String, dynamic> responseData = jsonDecode(responseBody);
       final String content = responseData['choices'][0]['message']['content'];
       
       // Clean up the content to handle potential markdown formatting
@@ -235,9 +239,7 @@ class RecipeGeneratorService {
       // Trim any extra whitespace
       cleanContent = cleanContent.trim();
       
-      print('Parsed content: $cleanContent'); // Debug log
-      
-      // Parse the JSON from the cleaned content
+      // Decode the JSON properly with UTF-8 support
       final Map<String, dynamic> recipeData = jsonDecode(cleanContent);
       final nutritionData = recipeData['nutrition'];
       

@@ -8,7 +8,9 @@ class RecipeService {
 
   // Save a Recipe to Firestore
   Future<void> saveRecipe(Recipe recipe) async {
-    await _firestore.collection('recipes').doc(recipe.id).set(recipe.toMap());
+    // Ensure all text fields are properly encoded
+    final recipeMap = recipe.toMap();
+    await _firestore.collection('recipes').doc(recipe.id).set(recipeMap);
   }
 
   // Create a new recipe and return its ID
@@ -35,7 +37,7 @@ class RecipeService {
         createdAt: recipe.createdAt ?? DateTime.now(),
       );
       
-      // Save the recipe
+      // Save the recipe using its toMap method which handles encoding
       await docRef.set(recipeWithId.toMap());
       
       // Update the user's myRecipes array
@@ -54,7 +56,12 @@ class RecipeService {
 Future<Recipe?> getRecipeById(String id) async {
   DocumentSnapshot doc = await _firestore.collection('recipes').doc(id).get();
   if (doc.exists) {
-    return Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    try {
+      return Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    } catch (e) {
+      print('Error parsing recipe data: $e');
+      return null;
+    }
   }
   return null;
 }
@@ -67,9 +74,7 @@ Future<List<Recipe>> searchRecipesByTitle(String title) async {
       .where('title', isLessThan: title + 'z')
       .get();
 
-  return snapshot.docs
-      .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-      .toList();
+  return _parseRecipeSnapshot(snapshot);
 }
 
 // Search Recipes by Category Tags
@@ -79,9 +84,7 @@ Future<List<Recipe>> searchRecipesByCategoryTags(List<String> tags) async {
       .where('categoryTags', arrayContainsAny: tags)
       .get();
 
-  return snapshot.docs
-      .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-      .toList();
+  return _parseRecipeSnapshot(snapshot);
 }
 
 // Search Recipes by Creator
@@ -91,9 +94,7 @@ Future<List<Recipe>> searchRecipesByCreator(String creatorId) async {
       .where('creator.id', isEqualTo: creatorId)
       .get();
 
-  return snapshot.docs
-      .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-      .toList();
+  return _parseRecipeSnapshot(snapshot);
 }
 
 // Search Recipes by Rating
@@ -103,14 +104,28 @@ Future<List<Recipe>> searchRecipesByRating(double minRating) async {
       .where('averageRating', isGreaterThanOrEqualTo: minRating)
       .get();
 
-  return snapshot.docs
-      .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-      .toList();
+  return _parseRecipeSnapshot(snapshot);
+}
+
+// Helper method to parse recipe snapshots with error handling
+List<Recipe> _parseRecipeSnapshot(QuerySnapshot snapshot) {
+  List<Recipe> recipes = [];
+  for (var doc in snapshot.docs) {
+    try {
+      recipes.add(Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id));
+    } catch (e) {
+      print('Error parsing recipe document ${doc.id}: $e');
+      // Skip this document and continue with others
+    }
+  }
+  return recipes;
 }
 
 // Update a Recipe
 Future<void> updateRecipe(Recipe recipe) async {
-  await _firestore.collection('recipes').doc(recipe.id).update(recipe.toMap());
+  // Ensure all text fields are properly encoded
+  final recipeMap = recipe.toMap();
+  await _firestore.collection('recipes').doc(recipe.id).update(recipeMap);
 }
 
 // Get recent recipes with a limit
@@ -122,9 +137,7 @@ Future<List<Recipe>> getRecentRecipes(int limit) async {
         .limit(limit)
         .get();
 
-    return snapshot.docs
-        .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    return _parseRecipeSnapshot(snapshot);
   } catch (e) {
     print('Error fetching recent recipes: $e');
     return [];
@@ -146,9 +159,7 @@ Future<List<Recipe>> getMoreRecentRecipes(int limit, DateTime? lastTimestamp) as
     
     QuerySnapshot snapshot = await query.get();
 
-    return snapshot.docs
-        .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    return _parseRecipeSnapshot(snapshot);
   } catch (e) {
     print('Error fetching more recent recipes: $e');
     return [];
@@ -166,7 +177,12 @@ Future<Recipe?> getRandomRecipe() async {
     if (snapshot.docs.isNotEmpty) {
       var randomDoc = snapshot.docs[Random().nextInt(snapshot.docs.length)];
       print('Fetched recipe data: ${randomDoc.data()}'); // Log the fetched data
-      return Recipe.fromMap(randomDoc.data() as Map<String, dynamic>, randomDoc.id);
+      try {
+        return Recipe.fromMap(randomDoc.data() as Map<String, dynamic>, randomDoc.id);
+      } catch (e) {
+        print('Error parsing random recipe: $e');
+        return null;
+      }
     } else {
       print('No recipes found in Firestore.'); // Log if no recipes exist
       return null;
@@ -255,7 +271,12 @@ Future<Recipe?> getUpdatedRecipe(String recipeId) async {
   try {
     final doc = await _firestore.collection('recipes').doc(recipeId).get();
     if (doc.exists) {
-      return Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      try {
+        return Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      } catch (e) {
+        print('Error parsing updated recipe: $e');
+        return null;
+      }
     }
     return null;
   } catch (e) {
@@ -292,18 +313,7 @@ Future<List<Recipe>> getRecipesFromFollowing(List<String> followingIds, int limi
       
       print('Found ${snapshot.docs.length} recipes from followed profiles');
       
-      List<Recipe> recipes = [];
-      for (var doc in snapshot.docs) {
-        try {
-          final data = doc.data() as Map<String, dynamic>;
-          print('Recipe data: ${data['title']} by creator: ${data['creator']['uid']}');
-          recipes.add(Recipe.fromMap(data, doc.id));
-        } catch (e) {
-          print('Error parsing recipe document: $e');
-        }
-      }
-      
-      return recipes;
+      return _parseRecipeSnapshot(snapshot);
     } catch (e) {
       // If index doesn't exist, fall back to a simpler query without ordering
       print('Index-based query failed, falling back to simpler query: $e');
@@ -317,16 +327,7 @@ Future<List<Recipe>> getRecipesFromFollowing(List<String> followingIds, int limi
       
       print('Found ${snapshot.docs.length} recipes in fallback query');
       
-      List<Recipe> recipes = [];
-      for (var doc in snapshot.docs) {
-        try {
-          final data = doc.data() as Map<String, dynamic>;
-          print('Recipe data (fallback): ${data['title']} by creator: ${data['creator']['uid']}');
-          recipes.add(Recipe.fromMap(data, doc.id));
-        } catch (e) {
-          print('Error parsing recipe document: $e');
-        }
-      }
+      List<Recipe> recipes = _parseRecipeSnapshot(snapshot);
       
       // Sort the results locally since we couldn't use orderBy in the query
       recipes.sort((a, b) {
@@ -371,16 +372,7 @@ Future<List<Recipe>> getMoreRecipesFromFollowing(List<String> followingIds, int 
     
     QuerySnapshot snapshot = await query.get();
     
-    List<Recipe> recipes = [];
-    for (var doc in snapshot.docs) {
-      try {
-        recipes.add(Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id));
-      } catch (e) {
-        print('Error parsing recipe document: $e');
-      }
-    }
-    
-    return recipes;
+    return _parseRecipeSnapshot(snapshot);
   } catch (e) {
     print('Error fetching more recipes from following: $e');
     return [];

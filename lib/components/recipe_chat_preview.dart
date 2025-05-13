@@ -54,6 +54,11 @@ class RecipeChatPreview extends StatelessWidget {
               fontFamily: 'Open Sans',
               fontWeight: FontWeight.w700,
               color: Color(0xFF030303),
+              // Add font features for special characters
+              fontFeatures: [
+                FontFeature.enable('kern'),
+                FontFeature.enable('liga'),
+              ],
             ),
           ),
         ),
@@ -85,6 +90,11 @@ class RecipeChatPreview extends StatelessWidget {
                   fontFamily: 'Open Sans',
                   fontWeight: FontWeight.w700,
                   fontStyle: FontStyle.italic,
+                  // Add font features for special characters
+                  fontFeatures: [
+                    FontFeature.enable('kern'),
+                    FontFeature.enable('liga'),
+                  ],
                 ),
               ),
             );
@@ -101,7 +111,14 @@ class RecipeChatPreview extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontFamily: 'Open Sans',
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
                       ),
+                      softWrap: true,
+                      textWidthBasis: TextWidthBasis.longestLine,
                     ),
                   ),
                   // Bullet point positioned closer to text
@@ -206,6 +223,11 @@ class RecipeChatPreview extends StatelessWidget {
               fontFamily: 'Open Sans',
               fontWeight: FontWeight.w700,
               color: Color(0xFF030303),
+              // Add font features for special characters
+              fontFeatures: [
+                FontFeature.enable('kern'),
+                FontFeature.enable('liga'),
+              ],
             ),
           ),
         ),
@@ -239,6 +261,11 @@ class RecipeChatPreview extends StatelessWidget {
                   fontFamily: 'Open Sans',
                   fontWeight: FontWeight.w700,
                   fontStyle: FontStyle.italic,
+                  // Add font features for special characters
+                  fontFeatures: [
+                    FontFeature.enable('kern'),
+                    FontFeature.enable('liga'),
+                  ],
                 ),
               ),
             );
@@ -255,7 +282,14 @@ class RecipeChatPreview extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontFamily: 'Open Sans',
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
                       ),
+                      softWrap: true,
+                      textWidthBasis: TextWidthBasis.longestLine,
                     ),
                   ),
                   // Bullet point positioned closer to text
@@ -305,6 +339,11 @@ class RecipeChatPreview extends StatelessWidget {
               fontSize: 16,
               fontFamily: 'Open Sans',
               fontStyle: FontStyle.italic,
+              // Add font features for special characters
+              fontFeatures: [
+                FontFeature.enable('kern'),
+                FontFeature.enable('liga'),
+              ],
             ),
           ),
         ),
@@ -319,15 +358,36 @@ class RecipeChatPreview extends StatelessWidget {
                   children: [
                     Text(
                       'Calories: ${recipe.nutrition.caloriesPerServing} kcal',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
+                      ),
                     ),
                     Text(
                       'Protein: ${recipe.nutrition.protein}${recipe.nutrition.unit}',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
+                      ),
                     ),
                     Text(
                       'Fat: ${recipe.nutrition.fat}${recipe.nutrition.unit}',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -338,15 +398,36 @@ class RecipeChatPreview extends StatelessWidget {
                   children: [
                     Text(
                       'Carbs: ${recipe.nutrition.carbs}${recipe.nutrition.unit}',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
+                      ),
                     ),
                     Text(
                       'Fiber: ${recipe.nutrition.fiber}${recipe.nutrition.unit}',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
+                      ),
                     ),
                     Text(
                       'Sugar: ${recipe.nutrition.sugar}${recipe.nutrition.unit}',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: 16,
+                        // Add font features for special characters
+                        fontFeatures: [
+                          FontFeature.enable('kern'),
+                          FontFeature.enable('liga'),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -451,6 +532,11 @@ class RecipeChatPreview extends StatelessWidget {
                 fontFamily: 'Open Sans',
                 fontWeight: FontWeight.w700,
                 fontStyle: FontStyle.italic,
+                // Add font features for special characters
+                fontFeatures: [
+                  FontFeature.enable('kern'),
+                  FontFeature.enable('liga'),
+                ],
               ),
             ),
           ),
@@ -470,7 +556,14 @@ class RecipeChatPreview extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontFamily: 'Open Sans',
+                      // Add font features for special characters
+                      fontFeatures: [
+                        FontFeature.enable('kern'),
+                        FontFeature.enable('liga'),
+                      ],
                     ),
+                    softWrap: true,
+                    textWidthBasis: TextWidthBasis.longestLine,
                   ),
                 ),
                 // Number circle positioned closer to text

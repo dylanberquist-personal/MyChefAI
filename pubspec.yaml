@@ -18,6 +18,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_storage: ^12.4.4
   http: ^1.1.0  # Added HTTP package for API calls
+  # Add explicit dependency for Unicode/UTF-8 handling
+  characters: ^1.3.0     # For proper character handling, including extended Unicode
+  flutter_localizations:  # For localization support to handle different character sets
+    sdk: flutter
+  intl: ^0.19.0          # Required for localization
 
 dev_dependencies:
   flutter_test:

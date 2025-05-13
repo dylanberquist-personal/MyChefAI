@@ -91,7 +91,15 @@ class _ChatBubbleState extends State<ChatBubble> {
                   fontSize: 18,
                   fontFamily: 'Open Sans',
                   color: Colors.black87,
+                  // Set default text features to improve rendering of special characters
+                  fontFeatures: [
+                    FontFeature.enable('kern'), // Kerning
+                    FontFeature.enable('liga'), // Standard ligatures
+                  ],
                 ),
+                // Enable text scaling to properly display special characters
+                textWidthBasis: TextWidthBasis.longestLine,
+                softWrap: true,
               ),
               
             // For recipe messages with dietary restriction information
@@ -214,6 +222,11 @@ class DietaryExplanation extends StatelessWidget {
                   fontSize: 13,
                   fontFamily: 'Open Sans',
                   color: respectsRestrictions ? Colors.green[700] : Colors.red[700],
+                  // Enable font features for special characters
+                  fontFeatures: [
+                    FontFeature.enable('kern'), // Kerning
+                    FontFeature.enable('liga'), // Standard ligatures
+                  ],
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // Add this import
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -146,7 +147,53 @@ class MyApp extends StatelessWidget {
             TargetPlatform.windows: _NoAnimationTransitionBuilder(),
           },
         ),
+        // Add text theme with proper font features for special characters
+        textTheme: TextTheme(
+          bodyLarge: TextStyle(
+            fontFeatures: [
+              FontFeature.enable('kern'),
+              FontFeature.enable('liga'),
+            ],
+          ),
+          bodyMedium: TextStyle(
+            fontFeatures: [
+              FontFeature.enable('kern'),
+              FontFeature.enable('liga'),
+            ],
+          ),
+          displayLarge: TextStyle(
+            fontFeatures: [
+              FontFeature.enable('kern'),
+              FontFeature.enable('liga'),
+            ],
+          ),
+          displayMedium: TextStyle(
+            fontFeatures: [
+              FontFeature.enable('kern'),
+              FontFeature.enable('liga'),
+            ],
+          ),
+        ),
       ),
+      // Add localization delegates to support special characters in various languages
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // Support a wide range of locales for better special character rendering
+      supportedLocales: const [
+        Locale('en'), // English
+        Locale('es'), // Spanish
+        Locale('fr'), // French
+        Locale('de'), // German
+        Locale('it'), // Italian
+        Locale('pt'), // Portuguese
+        Locale('ja'), // Japanese
+        Locale('ko'), // Korean
+        Locale('zh'), // Chinese
+        // Add more locales as needed
+      ],
       home: FutureBuilder(
         future: _authService.getCurrentUser(),
         builder: (context, snapshot) {
