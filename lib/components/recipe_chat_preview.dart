@@ -25,17 +25,26 @@ class RecipeChatPreview extends StatelessWidget {
   }
 
   Widget _buildPreviewView() {
+    // Define a consistent left padding for text alignment
+    const double textLeftPadding = 32.0;
+    // Position for bullet points
+    const double bulletLeftPosition = textLeftPadding - 14;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Recipe title
-        Text(
-          recipe.title,
-          style: TextStyle(
-            fontSize: 24,
-            fontFamily: 'Open Sans',
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF030303),
+        // Recipe title with right padding to avoid overlapping with checkmark
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.only(right: 40), // Add right padding to avoid checkmark overlap
+          child: Text(
+            recipe.title,
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: 'Open Sans',
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF030303),
+            ),
           ),
         ),
         SizedBox(height: 12),
@@ -57,12 +66,11 @@ class RecipeChatPreview extends StatelessWidget {
         ...recipe.ingredients.take(3).map((ingredient) {
           return Padding(
             padding: EdgeInsets.only(bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Icon(Icons.circle, size: 8, color: Colors.black87),
-                SizedBox(width: 8),
-                Expanded(
+                // Text with consistent padding
+                Padding(
+                  padding: EdgeInsets.only(left: textLeftPadding),
                   child: Text(
                     ingredient,
                     style: TextStyle(
@@ -71,23 +79,36 @@ class RecipeChatPreview extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Bullet point positioned closer to text
+                Positioned(
+                  left: bulletLeftPosition, // Position bullet closer to text
+                  top: 8, // Vertically center with the text
+                  child: Icon(Icons.circle, size: 8, color: Colors.black87),
+                ),
               ],
             ),
           );
         }),
         if (recipe.ingredients.length > 3)
-          InkWell(
-            onTap: onToggleExpand,
-            child: Text(
-              '...and ${recipe.ingredients.length - 3} more ingredients +',  // Added + sign
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Open Sans',
-                fontStyle: FontStyle.italic,
-                color: Color(0xFF673AB7),  // Changed to purple
-                decoration: TextDecoration.none,  // Removed underline
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // This creates the same horizontal space as the bullet points
+              SizedBox(width: bulletLeftPosition),
+              InkWell(
+                onTap: onToggleExpand,
+                child: Text(
+                  '...and ${recipe.ingredients.length - 3} more ingredients +',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Open Sans',
+                    fontStyle: FontStyle.italic,
+                    color: Color(0xFF673AB7),
+                    decoration: TextDecoration.none,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         SizedBox(height: 16),
         
@@ -119,18 +140,24 @@ class RecipeChatPreview extends StatelessWidget {
   }
 
   Widget _buildExpandedView() {
-    // Expanded view remains unchanged
+    // Define a consistent left padding for text alignment
+    const double textLeftPadding = 32.0;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Recipe title
-        Text(
-          recipe.title,
-          style: TextStyle(
-            fontSize: 24,
-            fontFamily: 'Open Sans',
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF030303),
+        // Recipe title with right padding to avoid overlapping with checkmark
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.only(right: 40), // Add right padding to avoid checkmark overlap
+          child: Text(
+            recipe.title,
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: 'Open Sans',
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF030303),
+            ),
           ),
         ),
         SizedBox(height: 12),
@@ -152,12 +179,11 @@ class RecipeChatPreview extends StatelessWidget {
         ...recipe.ingredients.map((ingredient) {
           return Padding(
             padding: EdgeInsets.only(bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Icon(Icons.circle, size: 8, color: Colors.black87),
-                SizedBox(width: 8),
-                Expanded(
+                // Text with consistent padding
+                Padding(
+                  padding: EdgeInsets.only(left: textLeftPadding),
                   child: Text(
                     ingredient,
                     style: TextStyle(
@@ -165,6 +191,12 @@ class RecipeChatPreview extends StatelessWidget {
                       fontFamily: 'Open Sans',
                     ),
                   ),
+                ),
+                // Bullet point positioned closer to text
+                Positioned(
+                  left: textLeftPadding - 14, // Position bullet closer to text
+                  top: 8, // Vertically center with the text
+                  child: Icon(Icons.circle, size: 8, color: Colors.black87),
                 ),
               ],
             ),
@@ -187,31 +219,36 @@ class RecipeChatPreview extends StatelessWidget {
           final instruction = entry.value;
           return Padding(
             padding: EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  margin: EdgeInsets.only(right: 8, top: 2),
-                  decoration: BoxDecoration(
-                    color: Color(0xFFFFFFC1),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Expanded(
+                // Text with consistent padding
+                Padding(
+                  padding: EdgeInsets.only(left: textLeftPadding),
                   child: Text(
                     instruction,
                     style: TextStyle(
                       fontSize: 16,
                       fontFamily: 'Open Sans',
+                    ),
+                  ),
+                ),
+                // Number circle positioned closer to text
+                Positioned(
+                  left: textLeftPadding - 28, // Position number closer to text
+                  top: 0, // Align with text top
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFFFFC1),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -231,56 +268,62 @@ class RecipeChatPreview extends StatelessWidget {
           ),
         ),
         SizedBox(height: 4),
-        Text(
-          'Serving size: ${recipe.nutrition.servingSize}',
-          style: TextStyle(
-            fontSize: 16,
-            fontFamily: 'Open Sans',
-            fontStyle: FontStyle.italic,
+        Padding(
+          padding: EdgeInsets.only(left: textLeftPadding), // Align with ingredient text
+          child: Text(
+            'Serving size: ${recipe.nutrition.servingSize}',
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'Open Sans',
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ),
         SizedBox(height: 4),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Calories: ${recipe.nutrition.caloriesPerServing} kcal',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  Text(
-                    'Protein: ${recipe.nutrition.protein}${recipe.nutrition.unit}',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  Text(
-                    'Fat: ${recipe.nutrition.fat}${recipe.nutrition.unit}',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
+        Padding(
+          padding: EdgeInsets.only(left: textLeftPadding), // Align with ingredient text
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Calories: ${recipe.nutrition.caloriesPerServing} kcal',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'Protein: ${recipe.nutrition.protein}${recipe.nutrition.unit}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'Fat: ${recipe.nutrition.fat}${recipe.nutrition.unit}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Carbs: ${recipe.nutrition.carbs}${recipe.nutrition.unit}',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  Text(
-                    'Fiber: ${recipe.nutrition.fiber}${recipe.nutrition.unit}',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  Text(
-                    'Sugar: ${recipe.nutrition.sugar}${recipe.nutrition.unit}',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Carbs: ${recipe.nutrition.carbs}${recipe.nutrition.unit}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'Fiber: ${recipe.nutrition.fiber}${recipe.nutrition.unit}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      'Sugar: ${recipe.nutrition.sugar}${recipe.nutrition.unit}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         SizedBox(height: 16),
         
