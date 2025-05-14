@@ -83,6 +83,20 @@ class _RecipeScreenState extends State<RecipeScreen> {
             recipeService: _recipeService,
           );
         });
+        
+        // Also update favorite status
+        if (_currentUserId != null) {
+          final favorited = await _recipeService.isRecipeFavorited(
+            _currentRecipe.id!,
+            _currentUserId!,
+          );
+          
+          if (mounted) {
+            setState(() {
+              isFavorited = favorited;
+            });
+          }
+        }
       }
     } catch (e) {
       print('Error refreshing recipe data: $e');
@@ -154,26 +168,27 @@ class _RecipeScreenState extends State<RecipeScreen> {
   // Handle image update
   void _handleImageUpdated(String newImageUrl) {
     if (_currentRecipe.id != null) {
-      final updatedRecipe = Recipe(
-        id: _currentRecipe.id,
-        title: _currentRecipe.title,
-        image: newImageUrl,
-        ingredients: _currentRecipe.ingredients,
-        instructions: _currentRecipe.instructions,
-        categoryTags: _currentRecipe.categoryTags,
-        creator: _currentRecipe.creator,
-        averageRating: _currentRecipe.averageRating,
-        numberOfRatings: _currentRecipe.numberOfRatings,
-        numberOfFavorites: _currentRecipe.numberOfFavorites,
-        nutritionInfo: _currentRecipe.nutritionInfo,
-        isPublic: _currentRecipe.isPublic,
-        isFavorited: _currentRecipe.isFavorited,
-        createdAt: _currentRecipe.createdAt,
-      );
-      
       setState(() {
-        _currentRecipe = updatedRecipe;
+        _currentRecipe = Recipe(
+          id: _currentRecipe.id,
+          title: _currentRecipe.title,
+          image: newImageUrl,
+          ingredients: _currentRecipe.ingredients,
+          instructions: _currentRecipe.instructions,
+          categoryTags: _currentRecipe.categoryTags,
+          creator: _currentRecipe.creator,
+          averageRating: _currentRecipe.averageRating,
+          numberOfRatings: _currentRecipe.numberOfRatings,
+          numberOfFavorites: _currentRecipe.numberOfFavorites,
+          nutritionInfo: _currentRecipe.nutritionInfo,
+          isPublic: _currentRecipe.isPublic,
+          isFavorited: _currentRecipe.isFavorited,
+          createdAt: _currentRecipe.createdAt,
+        );
       });
+      
+      // Refresh to ensure we have the latest data
+      _refreshRecipeData();
     }
   }
 
@@ -222,7 +237,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
         NoAnimationPageRoute(
           builder: (context) => ProfileScreen(userId: _currentUserId!),
         ),
-      );
+      ).then((_) {
+        // Refresh data when returning from profile screen
+        _refreshRecipeData();
+      });
     }
   }
   
@@ -241,7 +259,10 @@ class _RecipeScreenState extends State<RecipeScreen> {
       NoAnimationPageRoute(
         builder: (context) => CreateRecipeScreen(),
       ),
-    );
+    ).then((_) {
+      // Refresh data when returning from create recipe screen
+      _refreshRecipeData();
+    });
   }
 
   @override
@@ -291,70 +312,73 @@ class _RecipeScreenState extends State<RecipeScreen> {
           _navigateToProfile();
         }
       },
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: RecipeImageSection(
+      body: RefreshIndicator(
+        onRefresh: _refreshRecipeData,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: RecipeImageSection(
+                  recipe: _currentRecipe,
+                  currentUserId: _currentUserId,
+                  onImageUpdated: _handleImageUpdated,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Favorite counter
+              RecipeFavoriteCounter(favoriteCount: _currentRecipe.numberOfFavorites),
+              const SizedBox(height: 24),
+
+              // Recipe content (ingredients and instructions)
+              RecipeContentSection(
                 recipe: _currentRecipe,
                 currentUserId: _currentUserId,
-                onImageUpdated: _handleImageUpdated,
+                onRecipeUpdated: _refreshRecipeData,
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Favorite counter
-            RecipeFavoriteCounter(favoriteCount: _currentRecipe.numberOfFavorites),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Recipe content (ingredients and instructions)
-            RecipeContentSection(
-              recipe: _currentRecipe,
-              currentUserId: _currentUserId,
-              onRecipeUpdated: _refreshRecipeData,
-            ),
-            const SizedBox(height: 24),
-
-            // Category Tags Section
-            if (_currentRecipe.categoryTags.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  HeaderText(text: 'Categories'),
-                  const SizedBox(height: 8),
-                  CategoryTags(tags: _currentRecipe.categoryTags),
-                ],
-              ),
-            const SizedBox(height: 24),
-
-            // Creator Profile Block
-            HeaderText(text: 'Created By'),
-            const SizedBox(height: 8),
-            if (_currentRecipe.creator.uid.isEmpty)
-              const Center(child: Text('Creator information is missing')),
-            if (_currentRecipe.creator.uid.isNotEmpty)
-              if (_creatorProfile != null)
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.zero,
-                  child: ProfileBlock(profile: _creatorProfile!),
+              // Category Tags Section
+              if (_currentRecipe.categoryTags.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    HeaderText(text: 'Categories'),
+                    const SizedBox(height: 8),
+                    CategoryTags(tags: _currentRecipe.categoryTags),
+                  ],
                 ),
-            if (_creatorProfile == null && _currentRecipe.creator.uid.isNotEmpty)
-              const Center(child: Text('Creator profile not found')),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Rating Block
-            _currentRecipe.id != null && _currentRecipe.id!.isNotEmpty
-              ? RatingBlock(
-                  recipeId: _currentRecipe.id!,
-                  onRatingChanged: _handleRatingChanged,
-                )
-              : const Center(child: Text('Cannot rate this recipe')),
-            const SizedBox(height: 24),
-          ],
+              // Creator Profile Block
+              HeaderText(text: 'Created By'),
+              const SizedBox(height: 8),
+              if (_currentRecipe.creator.uid.isEmpty)
+                const Center(child: Text('Creator information is missing')),
+              if (_currentRecipe.creator.uid.isNotEmpty)
+                if (_creatorProfile != null)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.zero,
+                    child: ProfileBlock(profile: _creatorProfile!),
+                  ),
+              if (_creatorProfile == null && _currentRecipe.creator.uid.isNotEmpty)
+                const Center(child: Text('Creator profile not found')),
+              const SizedBox(height: 24),
+
+              // Rating Block
+              _currentRecipe.id != null && _currentRecipe.id!.isNotEmpty
+                ? RatingBlock(
+                    recipeId: _currentRecipe.id!,
+                    onRatingChanged: _handleRatingChanged,
+                  )
+                : const Center(child: Text('Cannot rate this recipe')),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );

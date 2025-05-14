@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../models/recipe.dart';
 import '../services/storage_service.dart';
+import '../services/recipe_service.dart';
 
 class RecipeImageSection extends StatefulWidget {
   final Recipe recipe;
@@ -24,6 +25,7 @@ class RecipeImageSection extends StatefulWidget {
 class _RecipeImageSectionState extends State<RecipeImageSection> {
   final ImagePicker _picker = ImagePicker();
   final StorageService _storageService = StorageService();
+  final RecipeService _recipeService = RecipeService();
   
   bool _isUploadingImage = false;
   File? _selectedImage;
@@ -100,6 +102,26 @@ class _RecipeImageSectionState extends State<RecipeImageSection> {
 
       // Call the callback to update the parent
       widget.onImageUpdated(imageUrl);
+
+      // UPDATE RECIPE IN FIRESTORE DIRECTLY HERE
+      final updatedRecipe = Recipe(
+        id: widget.recipe.id,
+        title: widget.recipe.title,
+        image: imageUrl,
+        ingredients: widget.recipe.ingredients,
+        instructions: widget.recipe.instructions,
+        categoryTags: widget.recipe.categoryTags,
+        creator: widget.recipe.creator,
+        averageRating: widget.recipe.averageRating,
+        numberOfRatings: widget.recipe.numberOfRatings,
+        numberOfFavorites: widget.recipe.numberOfFavorites,
+        nutritionInfo: widget.recipe.nutritionInfo,
+        isPublic: widget.recipe.isPublic,
+        isFavorited: widget.recipe.isFavorited,
+        createdAt: widget.recipe.createdAt,
+      );
+      
+      await _recipeService.updateRecipe(updatedRecipe);
 
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
