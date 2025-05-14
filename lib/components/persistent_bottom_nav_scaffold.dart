@@ -4,6 +4,7 @@ import 'footer_nav_bar.dart';
 import '../screens/create_recipe_screen.dart';
 import '../screens/home_screen.dart'; // Import HomeScreen
 import '../screens/profile_screen.dart'; // Import ProfileScreen
+import '../screens/search_screen.dart'; // Add this import for the search screen
 import '../navigation/no_animation_page_route.dart';
 
 class PersistentBottomNavScaffold extends StatelessWidget {
@@ -45,6 +46,22 @@ class PersistentBottomNavScaffold extends StatelessWidget {
         ),
       );
     }
+    // Special handling for index 1 (Search)
+    else if (index == 1) {
+      // Check if already on SearchScreen
+      if (ModalRoute.of(context)?.settings.name == '/search') {
+        return; // Do nothing if already on SearchScreen
+      }
+      
+      // Navigate to SearchScreen
+      Navigator.push(
+        context,
+        NoAnimationPageRoute(
+          builder: (context) => SearchScreen(),
+          settings: RouteSettings(name: '/search'),
+        ),
+      );
+    }
     // Special handling for index 2 (Create Recipe)
     else if (index == 2) {
       // Check if already on CreateRecipeScreen
@@ -78,7 +95,7 @@ class PersistentBottomNavScaffold extends StatelessWidget {
         ),
       );
     }
-    // For indices 1 and 3, use the provided callback
+    // For indices 3, use the provided callback
     else {
       onNavItemTap(index);
     }
