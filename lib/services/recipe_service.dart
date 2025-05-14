@@ -167,8 +167,34 @@ Future<List<Recipe>> getMoreRecentRecipes(int limit, DateTime? lastTimestamp) as
 }
 
 // Delete a Recipe
-Future<void> deleteRecipe(String id) async {
-  await _firestore.collection('recipes').doc(id).delete();
+// Delete a Recipe with full cleanup
+Future<void> deleteRecipe(String recipeId, String creatorId) async {
+  try {
+    // Use a batch to ensure atomic operations
+    WriteBatch batch = _firestore.batch();
+    
+    // Reference to the recipe document
+    DocumentReference recipeRef = _firestore.collection('recipes').doc(recipeId);
+    
+    // Reference to the creator's profile document
+    DocumentReference creatorRef = _firestore.collection('profiles').doc(creatorId);
+    
+    // Delete the recipe document
+    batch.delete(recipeRef);
+    
+    // Remove recipe ID from creator's myRecipes array
+    batch.update(creatorRef, {
+      'myRecipes': FieldValue.arrayRemove([recipeId])
+    });
+    
+    // Execute all operations atomically
+    await batch.commit();
+    
+    print('Recipe $recipeId successfully deleted and removed from creator profile');
+  } catch (e) {
+    print('Error deleting recipe: $e');
+    throw e;
+  }
 }
 
 Future<Recipe?> getRandomRecipe() async {
