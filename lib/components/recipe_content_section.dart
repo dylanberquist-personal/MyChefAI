@@ -216,6 +216,225 @@ class _RecipeContentSectionState extends State<RecipeContentSection> {
     }
   }
 
+  // Method to build the editable instructions with correct step numbering
+  Widget _buildEditableInstructions() {
+    List<Widget> instructionFields = [];
+    int currentStepNumber = 1;
+    
+    // First identify all section headers to properly number steps
+    List<int> sectionHeaderIndices = [];
+    for (int i = 0; i < _instructionControllers.length; i++) {
+      if (_isSectionHeader(_instructionControllers[i].text)) {
+        sectionHeaderIndices.add(i);
+      }
+    }
+    
+    // Add controllers with proper numbering that resets after sections
+    for (int i = 0; i < _instructionControllers.length; i++) {
+      TextEditingController controller = _instructionControllers[i];
+      bool isSectionHeader = _isSectionHeader(controller.text);
+      
+      // Reset counter when hitting a section header
+      if (isSectionHeader) {
+        currentStepNumber = 1;
+      }
+      
+      instructionFields.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // For section headers, remove the number and add appropriate padding
+              if (!isSectionHeader) 
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFFFFC1),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  margin: EdgeInsets.only(right: 8, top: 12),
+                  child: Text(
+                    '$currentStepNumber',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              else
+                SizedBox(width: 0),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    // Hint for section headers
+                    hintText: isSectionHeader ? 'For the section: ' : 'Instruction step',
+                  ),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Open Sans',
+                    fontWeight: isSectionHeader ? FontWeight.bold : FontWeight.normal,
+                    fontStyle: isSectionHeader ? FontStyle.italic : FontStyle.normal,
+                  ),
+                  maxLines: 3,
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.remove_circle),
+                color: Colors.red,
+                onPressed: () => _removeInstructionField(i),
+              ),
+            ],
+          ),
+        ),
+      );
+      
+      // Increment step number for regular steps
+      if (!isSectionHeader) {
+        currentStepNumber++;
+      }
+    }
+    
+    // Add instruction field and section buttons at the bottom
+    instructionFields.add(
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextButton.icon(
+                onPressed: _addInstructionField,
+                icon: Icon(Icons.add),
+                label: Text('Add Step'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  backgroundColor: Color(0xFFFFFFC1),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: TextButton.icon(
+                onPressed: () => _addSectionHeader(_instructionControllers, 'section'),
+                icon: Icon(Icons.playlist_add),
+                label: Text('Add Section'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  backgroundColor: Colors.grey[200],
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: instructionFields,
+    );
+  }
+
+  // Build instructions display with proper section handling and numbered steps
+  Widget _buildInstructionsDisplay() {
+    List<Widget> instructionWidgets = [];
+    int currentStepNumber = 1;
+    String currentSection = '';
+
+    for (int i = 0; i < widget.recipe.instructions.length; i++) {
+      String instruction = widget.recipe.instructions[i];
+      bool isSectionHeader = _isSectionHeader(instruction);
+      
+      if (isSectionHeader) {
+        // Reset step counter when we encounter a new section
+        currentStepNumber = 1;
+        currentSection = instruction;
+        
+        // Add the section header with the same styling as before
+        instructionWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              instruction,
+              style: TextStyle(
+                fontSize: 18,
+                fontFamily: 'Open Sans',
+                fontWeight: FontWeight.bold,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.left,
+            ),
+          ),
+        );
+      } else {
+        // Regular step with number that resets for each section
+        instructionWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Number circle positioned closer to text
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Color(0xFFFFFFC1),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  margin: EdgeInsets.only(right: 8, top: 2), // Reduced right margin
+                  child: Text(
+                    '$currentStepNumber',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    instruction,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Open Sans',
+                      // Add font features for special characters
+                      fontFeatures: [
+                        FontFeature.enable('kern'),
+                        FontFeature.enable('liga'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        
+        // Increment step number for non-section-header instructions
+        currentStepNumber++;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start, // Ensure column contents are left-aligned
+      children: instructionWidgets
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isOwner = _isRecipeOwner();
@@ -423,178 +642,11 @@ class _RecipeContentSectionState extends State<RecipeContentSection> {
         
         // Instructions List (Editable or Display)
         if (_isEditingInstructions)
-          // Editable instructions
-          Column(
-            children: [
-              ..._instructionControllers.asMap().entries.map((entry) {
-                int index = entry.key;
-                TextEditingController controller = entry.value;
-                
-                // Check if this is a section header
-                bool isSectionHeader = _isSectionHeader(controller.text);
-                
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // For section headers, remove the number and add appropriate padding
-                      if (!isSectionHeader) 
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: Color(0xFFFFFFC1),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          margin: EdgeInsets.only(right: 8, top: 12),
-                          child: Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        )
-                      else
-                        SizedBox(width: 0),
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            // Hint for section headers
-                            hintText: isSectionHeader ? 'For the section: ' : 'Instruction step',
-                          ),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'Open Sans',
-                            fontWeight: isSectionHeader ? FontWeight.bold : FontWeight.normal,
-                            fontStyle: isSectionHeader ? FontStyle.italic : FontStyle.normal,
-                          ),
-                          maxLines: 3,
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.remove_circle),
-                        color: Colors.red,
-                        onPressed: () => _removeInstructionField(index),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-              
-              // Add instruction and section buttons
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: _addInstructionField,
-                        icon: Icon(Icons.add),
-                        label: Text('Add Step'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          backgroundColor: Color(0xFFFFFFC1),
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => _addSectionHeader(_instructionControllers, 'section'),
-                        icon: Icon(Icons.playlist_add),
-                        label: Text('Add Section'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.black,
-                          backgroundColor: Colors.grey[200],
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          )
+          // Editable instructions with correct step numbering
+          _buildEditableInstructions()
         else
-          // Display instructions with proper handling of section headers
-          ...widget.recipe.instructions.asMap().entries.map((entry) {
-            int index = entry.key;
-            String instruction = entry.value;
-            
-            // Check if this is a section header
-            bool isSectionHeader = _isSectionHeader(instruction);
-            
-            if (isSectionHeader) {
-              // Special styling for section headers (no number, bold, italic)
-              return Padding(
-                padding: const EdgeInsets.only(top: 8, bottom: 4),
-                child: Text(
-                  instruction,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontFamily: 'Open Sans',
-                    fontWeight: FontWeight.bold,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              );
-            } else {
-              // Regular instruction with number
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Number circle positioned closer to text
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Color(0xFFFFFFC1),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      margin: EdgeInsets.only(right: 8, top: 2), // Reduced right margin
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        instruction,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontFamily: 'Open Sans',
-                          // Add font features for special characters
-                          fontFeatures: [
-                            FontFeature.enable('kern'),
-                            FontFeature.enable('liga'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-          }).toList(),
+          // Display instructions with proper handling of section headers and step numbering
+          _buildInstructionsDisplay(),
           
         // Show a loading indicator when saving
         if (_isSaving)
