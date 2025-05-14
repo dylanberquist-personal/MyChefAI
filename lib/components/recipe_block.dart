@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
+import '../models/profile.dart';
 import '../screens/recipe_screen.dart';
 import '../services/auth_service.dart';
 import '../services/recipe_service.dart';
+import '../services/profile_service.dart';
 import '../navigation/no_animation_page_route.dart';
 
 class RecipeBlock extends StatefulWidget {
@@ -17,10 +19,13 @@ class RecipeBlock extends StatefulWidget {
 class _RecipeBlockState extends State<RecipeBlock> {
   final AuthService _authService = AuthService();
   final RecipeService _recipeService = RecipeService();
+  final ProfileService _profileService = ProfileService(); // Add ProfileService
+  
   bool _isFavorited = false;
   bool _isLoading = true;
   String? _currentUserId;
   late Recipe _currentRecipe;
+  Profile? _creatorProfile; // Add state for creator profile
 
   @override
   void initState() {
@@ -44,6 +49,18 @@ class _RecipeBlockState extends State<RecipeBlock> {
         }
       } catch (e) {
         print('Error refreshing recipe data: $e');
+      }
+      
+      // Fetch the latest creator profile data
+      try {
+        final creatorProfile = await _profileService.getProfileById(_currentRecipe.creator.uid);
+        if (creatorProfile != null && mounted) {
+          setState(() {
+            _creatorProfile = creatorProfile;
+          });
+        }
+      } catch (e) {
+        print('Error fetching creator profile: $e');
       }
       
       // Check if this recipe is favorited by the current user
@@ -142,15 +159,20 @@ class _RecipeBlockState extends State<RecipeBlock> {
                     // Creator Info
                     Row(
                       children: [
-                        // Profile Picture
+                        // Profile Picture - Using the latest profile picture from fetched profile
                         CircleAvatar(
-                          backgroundImage: _currentRecipe.creator.profilePicture != null && 
-                                          _currentRecipe.creator.profilePicture!.isNotEmpty
-                              ? NetworkImage(_currentRecipe.creator.profilePicture!)
-                              : null,
+                          backgroundImage: (_creatorProfile?.profilePicture != null && 
+                                           _creatorProfile!.profilePicture!.isNotEmpty)
+                              ? NetworkImage(_creatorProfile!.profilePicture!)
+                              : (_currentRecipe.creator.profilePicture != null && 
+                                 _currentRecipe.creator.profilePicture!.isNotEmpty)
+                                  ? NetworkImage(_currentRecipe.creator.profilePicture!)
+                                  : null,
                           radius: 16,
-                          child: (_currentRecipe.creator.profilePicture == null || 
-                                 _currentRecipe.creator.profilePicture!.isEmpty)
+                          child: ((_creatorProfile?.profilePicture == null || 
+                                  _creatorProfile?.profilePicture?.isEmpty == true) &&
+                                 (_currentRecipe.creator.profilePicture == null || 
+                                  _currentRecipe.creator.profilePicture!.isEmpty))
                               ? Image.asset(
                                   'assets/images/profile_image_placeholder.png',
                                   fit: BoxFit.cover,
@@ -158,9 +180,9 @@ class _RecipeBlockState extends State<RecipeBlock> {
                               : null,
                         ),
                         SizedBox(width: 8),
-                        // Creator Name
+                        // Creator Name - Using the latest username if available
                         Text(
-                          _currentRecipe.creator.username,
+                          _creatorProfile?.username ?? _currentRecipe.creator.username,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
