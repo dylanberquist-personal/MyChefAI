@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/recipe.dart';
+import '../services/notification_service.dart';
 
 class RecipeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -45,6 +46,48 @@ class RecipeService {
       await _firestore.collection('profiles').doc(recipe.creator.id).update({
         'myRecipes': FieldValue.arrayUnion([docRef.id]),
       });
+      
+      print('Recipe created with ID: ${docRef.id} by user: ${recipe.creator.uid}');
+      
+      // Get followers to notify
+      try {
+        // Be more careful about the profile ID we use
+        String creatorProfileId = recipe.creator.uid.isNotEmpty ? recipe.creator.uid : recipe.creator.id;
+        print('Fetching creator profile with ID: $creatorProfileId');
+        
+        DocumentSnapshot creatorDoc = await _firestore.collection('profiles').doc(creatorProfileId).get();
+        if (creatorDoc.exists) {
+          print('Creator profile found');
+          final creatorData = creatorDoc.data() as Map<String, dynamic>;
+          
+          // Check for 'followers' field
+          if (creatorData.containsKey('followers')) {
+            List<dynamic> rawFollowers = creatorData['followers'] ?? [];
+            print('Raw followers data: $rawFollowers');
+            
+            // Convert to list of strings
+            List<String> followers = rawFollowers.map((f) => f.toString()).toList();
+            print('Found ${followers.length} followers to notify about new recipe');
+            
+            if (followers.isNotEmpty) {
+              print('Creating notifications for followers...');
+              // Create the notifications
+              final notificationService = NotificationService();
+              await notificationService.createNewRecipeNotification(recipeWithId, followers);
+              print('Notifications created successfully');
+            } else {
+              print('No followers to notify');
+            }
+          } else {
+            print('Creator profile does not have a followers field');
+          }
+        } else {
+          print('Creator profile not found');
+        }
+      } catch (e) {
+        // Just log the error and continue - don't let notification issues affect recipe creation
+        print('Error creating follower notifications: $e');
+      }
       
       return docRef.id;
     } catch (e) {
@@ -385,6 +428,22 @@ class RecipeService {
       // Commit the batch
       await batch.commit();
       
+      // Create notification if adding to favorites
+      if (!isFavorited) {
+        // Get recipe creator ID
+        final recipeData = recipeDoc.data() as Map<String, dynamic>;
+        final creatorId = recipeData['creator']['uid'];
+        
+        // Only notify if creator is not the same as the user who favorited
+        if (creatorId != userId) {
+          final notificationService = NotificationService();
+          await notificationService.createFavoriteNotification(
+            creatorId, 
+            recipeId, 
+            recipeData['title'] ?? 'Unknown Recipe'
+          );
+        }
+      }
     } catch (e) {
       print('Error toggling favorite: $e');
       throw e;

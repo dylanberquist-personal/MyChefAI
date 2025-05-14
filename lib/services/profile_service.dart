@@ -1,8 +1,10 @@
+// lib/services/profile_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/profile.dart';
 import '../models/recipe.dart';
 import 'recipe_service.dart';
+import '../services/notification_service.dart';
 
 class ProfileService {
   final FirebaseFirestore _firestore;
@@ -68,66 +70,73 @@ class ProfileService {
   }
 
   // Follow a User
-Future<void> followUser(String followerId, String followingId) async {
-  try {
-    // Begin a batch operation for atomic updates
-    WriteBatch batch = _firestore.batch();
-    
-    // Get references to both profiles
-    DocumentReference followerRef = _firestore.collection('profiles').doc(followerId);
-    DocumentReference followingRef = _firestore.collection('profiles').doc(followingId);
-    
-    // Update follower's "following" list
-    batch.update(followerRef, {
-      'following': FieldValue.arrayUnion([followingId]),
-    });
-    
-    // Update following user's followers list and increment count
-    batch.update(followingRef, {
-      'followers': FieldValue.arrayUnion([followerId]),
-      'followerCount': FieldValue.increment(1), // Use increment operation
-    });
-    
-    // Commit the batch
-    await batch.commit();
-    
-    print('Successfully followed user: $followingId');
-  } catch (e) {
-    print('Error following user: $e');
-    throw e;
+  Future<void> followUser(String followerId, String followingId) async {
+    try {
+      // Begin a batch operation for atomic updates
+      WriteBatch batch = _firestore.batch();
+      
+      // Get references to both profiles
+      DocumentReference followerRef = _firestore.collection('profiles').doc(followerId);
+      DocumentReference followingRef = _firestore.collection('profiles').doc(followingId);
+      
+      // Update follower's "following" list
+      batch.update(followerRef, {
+        'following': FieldValue.arrayUnion([followingId]),
+      });
+      
+      // Update following user's followers list and increment count
+      batch.update(followingRef, {
+        'followers': FieldValue.arrayUnion([followerId]),
+        'followerCount': FieldValue.increment(1), // Use increment operation
+      });
+      
+      // Commit the batch
+      await batch.commit();
+      
+      print('Successfully followed user: $followingId');
+      
+      // Add notification
+      final followerProfile = await getProfileById(followerId);
+      if (followerProfile != null) {
+        final notificationService = NotificationService();
+        await notificationService.createFollowerNotification(followingId, followerProfile);
+      }
+    } catch (e) {
+      print('Error following user: $e');
+      throw e;
+    }
   }
-}
 
-// Unfollow a User
-Future<void> unfollowUser(String followerId, String followingId) async {
-  try {
-    // Begin a batch operation for atomic updates
-    WriteBatch batch = _firestore.batch();
-    
-    // Get references to both profiles
-    DocumentReference followerRef = _firestore.collection('profiles').doc(followerId);
-    DocumentReference followingRef = _firestore.collection('profiles').doc(followingId);
-    
-    // Update follower's "following" list
-    batch.update(followerRef, {
-      'following': FieldValue.arrayRemove([followingId]),
-    });
-    
-    // Update following user's followers list and decrement count
-    batch.update(followingRef, {
-      'followers': FieldValue.arrayRemove([followerId]),
-      'followerCount': FieldValue.increment(-1), // Use increment operation
-    });
-    
-    // Commit the batch
-    await batch.commit();
-    
-    print('Successfully unfollowed user: $followingId');
-  } catch (e) {
-    print('Error unfollowing user: $e');
-    throw e;
+  // Unfollow a User
+  Future<void> unfollowUser(String followerId, String followingId) async {
+    try {
+      // Begin a batch operation for atomic updates
+      WriteBatch batch = _firestore.batch();
+      
+      // Get references to both profiles
+      DocumentReference followerRef = _firestore.collection('profiles').doc(followerId);
+      DocumentReference followingRef = _firestore.collection('profiles').doc(followingId);
+      
+      // Update follower's "following" list
+      batch.update(followerRef, {
+        'following': FieldValue.arrayRemove([followingId]),
+      });
+      
+      // Update following user's followers list and decrement count
+      batch.update(followingRef, {
+        'followers': FieldValue.arrayRemove([followerId]),
+        'followerCount': FieldValue.increment(-1), // Use increment operation
+      });
+      
+      // Commit the batch
+      await batch.commit();
+      
+      print('Successfully unfollowed user: $followingId');
+    } catch (e) {
+      print('Error unfollowing user: $e');
+      throw e;
+    }
   }
-}
 
   // Check if current user follows a specific user
   Future<bool> checkIfFollowing(String targetUserId) async {
@@ -175,32 +184,32 @@ Future<void> unfollowUser(String followerId, String followingId) async {
 
   // Fetch User Recipes
   Future<List<Recipe>> getUserRecipes(String userId, {String? currentUserId}) async {
-  try {
-    QuerySnapshot snapshot;
-    
-    // If viewing own profile, show all recipes
-    if (currentUserId == userId) {
-      snapshot = await _firestore
-          .collection('recipes')
-          .where('creator.id', isEqualTo: userId)
-          .get();
-    } else {
-      // If viewing someone else's profile, only show public recipes
-      snapshot = await _firestore
-          .collection('recipes')
-          .where('creator.id', isEqualTo: userId)
-          .where('isPublic', isEqualTo: true)
-          .get();
-    }
+    try {
+      QuerySnapshot snapshot;
+      
+      // If viewing own profile, show all recipes
+      if (currentUserId == userId) {
+        snapshot = await _firestore
+            .collection('recipes')
+            .where('creator.id', isEqualTo: userId)
+            .get();
+      } else {
+        // If viewing someone else's profile, only show public recipes
+        snapshot = await _firestore
+            .collection('recipes')
+            .where('creator.id', isEqualTo: userId)
+            .where('isPublic', isEqualTo: true)
+            .get();
+      }
 
-    return snapshot.docs
-        .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
-  } catch (e) {
-    print('Error fetching user recipes: $e');
-    return [];
+      return snapshot.docs
+          .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .toList();
+    } catch (e) {
+      print('Error fetching user recipes: $e');
+      return [];
+    }
   }
-}
 
   // Fetch User Favorites
   Future<List<Recipe>> getUserFavorites(String userId, RecipeService recipeService) async {

@@ -2,6 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/recipe.dart';
 import '../models/profile.dart';
+import '../services/notification_service.dart';
 
 class RatingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -139,6 +140,19 @@ class RatingService {
 
       // Commit the batch
       await batch.commit();
+      
+      // Create notification only if this is a new rating, not an update
+      if (!isUpdating) {
+        // Only notify if creator is not the same as the user who rated
+        if (creatorId != userId) {
+          final notificationService = NotificationService();
+          await notificationService.createRatingNotification(
+            creatorId, 
+            recipeId, 
+            recipe.title
+          );
+        }
+      }
     } catch (e) {
       print('Error rating recipe: $e');
       throw e;

@@ -2,9 +2,10 @@
 import 'package:flutter/material.dart';
 import 'footer_nav_bar.dart';
 import '../screens/create_recipe_screen.dart';
-import '../screens/home_screen.dart'; // Import HomeScreen
-import '../screens/profile_screen.dart'; // Import ProfileScreen
-import '../screens/search_screen.dart'; // Add this import for the search screen
+import '../screens/home_screen.dart';
+import '../screens/profile_screen.dart';
+import '../screens/search_screen.dart';
+import '../screens/notifications_screen.dart';
 import '../navigation/no_animation_page_route.dart';
 
 class PersistentBottomNavScaffold extends StatelessWidget {
@@ -78,6 +79,22 @@ class PersistentBottomNavScaffold extends StatelessWidget {
         ),
       );
     }
+    // Special handling for index 3 (Notifications)
+    else if (index == 3) {
+      // Check if already on NotificationsScreen
+      if (ModalRoute.of(context)?.settings.name == '/notifications') {
+        return; // Do nothing if already on NotificationsScreen
+      }
+      
+      // Navigate to NotificationsScreen
+      Navigator.push(
+        context,
+        NoAnimationPageRoute(
+          builder: (context) => NotificationsScreen(),
+          settings: RouteSettings(name: '/notifications'),
+        ),
+      );
+    }
     // Special handling for index 4 (Profile)
     else if (index == 4 && currentUserId != null) {
       // Don't navigate if already on current user's profile
@@ -95,7 +112,7 @@ class PersistentBottomNavScaffold extends StatelessWidget {
         ),
       );
     }
-    // For indices 3, use the provided callback
+    // For other indices, use the provided callback
     else {
       onNavItemTap(index);
     }
