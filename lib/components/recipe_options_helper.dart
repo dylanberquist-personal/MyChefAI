@@ -23,7 +23,8 @@ class RecipeOptionsHelper {
   
   // Check if current user is the recipe owner
   bool isRecipeOwner() {
-    return currentUserId != null && recipe.creator.uid == currentUserId;
+    return currentUserId != null && 
+           recipe.creator.uid == currentUserId;
   }
   
   // Toggle public/private status of recipe
@@ -75,6 +76,206 @@ class RecipeOptionsHelper {
       },
     );
   }
+
+  // Show report recipe dialog with improved styling
+void _showReportRecipeDialog() {
+  final List<String> reportReasons = [
+    'Inappropriate content',
+    'Copyright violation',
+    'Dangerous recipe',
+    'Misleading information',
+    'Other'
+  ];
+  
+  String selectedReason = reportReasons[0]; // Default selected reason
+  
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Container(
+              padding: EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    offset: Offset(2, 2),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Center(
+                    child: Text(
+                      'Report Recipe',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontFamily: 'Open Sans',
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF030303),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  
+                  // Description text
+                  Text(
+                    'Please select a reason for reporting this recipe:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Open Sans',
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF030303),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  
+                  // Report reasons
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Color(0xFFD3D3D3)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: reportReasons.map((reason) {
+                        return RadioListTile<String>(
+                          title: Text(
+                            reason,
+                            style: TextStyle(
+                              fontFamily: 'Open Sans',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          value: reason,
+                          groupValue: selectedReason,
+                          activeColor: Color(0xFF030303),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedReason = value!;
+                            });
+                          },
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          dense: true,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  
+                  // Additional notes field
+                  Text(
+                    'Additional notes (optional):',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Open Sans',
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF030303),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Color(0xFFD3D3D3)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Please provide any additional details...',
+                        hintStyle: TextStyle(
+                          fontFamily: 'Open Sans',
+                          fontSize: 14,
+                          color: Colors.grey[400],
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(16),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  
+                  // Action buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              side: BorderSide(color: Color(0xFFD3D3D3)),
+                            ),
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Open Sans',
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF030303),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Recipe reported for: $selectedReason'),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                backgroundColor: Colors.black87,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFFFFFFC1),
+                            foregroundColor: Colors.black,
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: Text(
+                            'Submit Report',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Open Sans',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 
   Future<void> deleteRecipe(Function() onSuccess) async {
   if (!isRecipeOwner() || recipe.id == null) return;
@@ -246,7 +447,7 @@ class RecipeOptionsHelper {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(16),
-              bottom: isOwner ? Radius.zero : Radius.circular(16),
+              bottom: isOwner ? Radius.zero : Radius.zero, // Changed to zero since we're adding another item for non-owners
             ),
           ),
           child: ListTile(
@@ -271,29 +472,29 @@ class RecipeOptionsHelper {
       ),
     ];
     
-    // Add Change Image Option - only for recipe owners
-    if (isOwner) {
+    // Add Report Recipe option for non-owners
+    if (!isOwner) {
       menuItems.add(
         PopupMenuItem(
-          height: 48, // Reduced height from 56
-          padding: EdgeInsets.zero, // Remove default padding
+          height: 48,
+          padding: EdgeInsets.zero,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.vertical(
                 top: Radius.zero,
-                bottom: Radius.zero,
+                bottom: Radius.circular(16),
               ),
             ),
             child: ListTile(
-              dense: true, // Makes the ListTile more compact
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding
+              dense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               leading: Icon(
-                Icons.image,
-                color: Colors.blue,
-                size: 22, // Slightly smaller icon
+                Icons.flag,
+                color: Colors.orange,
+                size: 22,
               ),
               title: Text(
-                'Change Image',
+                'Report Recipe',
                 style: TextStyle(
                   fontFamily: 'Open Sans',
                   fontSize: 16,
@@ -303,7 +504,7 @@ class RecipeOptionsHelper {
               ),
               onTap: () {
                 Navigator.pop(context);
-                onImagePickRequested();
+                _showReportRecipeDialog();
               },
             ),
           ),
