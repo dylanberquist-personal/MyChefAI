@@ -311,7 +311,11 @@ class _RecipeScreenState extends State<RecipeScreen> {
             const SizedBox(height: 24),
 
             // Recipe content (ingredients and instructions)
-            RecipeContentSection(recipe: _currentRecipe),
+            RecipeContentSection(
+              recipe: _currentRecipe,
+              currentUserId: _currentUserId,
+              onRecipeUpdated: _refreshRecipeData,
+            ),
             const SizedBox(height: 24),
 
             // Category Tags Section
