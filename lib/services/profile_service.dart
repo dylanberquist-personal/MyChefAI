@@ -174,21 +174,33 @@ Future<void> unfollowUser(String followerId, String followingId) async {
   }
 
   // Fetch User Recipes
-  Future<List<Recipe>> getUserRecipes(String userId) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
+  Future<List<Recipe>> getUserRecipes(String userId, {String? currentUserId}) async {
+  try {
+    QuerySnapshot snapshot;
+    
+    // If viewing own profile, show all recipes
+    if (currentUserId == userId) {
+      snapshot = await _firestore
           .collection('recipes')
           .where('creator.id', isEqualTo: userId)
           .get();
-
-      return snapshot.docs
-          .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-          .toList();
-    } catch (e) {
-      print('Error fetching user recipes: $e');
-      return [];
+    } else {
+      // If viewing someone else's profile, only show public recipes
+      snapshot = await _firestore
+          .collection('recipes')
+          .where('creator.id', isEqualTo: userId)
+          .where('isPublic', isEqualTo: true)
+          .get();
     }
+
+    return snapshot.docs
+        .map((doc) => Recipe.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList();
+  } catch (e) {
+    print('Error fetching user recipes: $e');
+    return [];
   }
+}
 
   // Fetch User Favorites
   Future<List<Recipe>> getUserFavorites(String userId, RecipeService recipeService) async {

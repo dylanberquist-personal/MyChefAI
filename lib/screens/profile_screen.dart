@@ -126,23 +126,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchRecipes() async {
-    try {
-      final recipes = await _profileService.getUserRecipes(widget.userId);
-      if (mounted) {
-        setState(() {
-          _recipes = recipes;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error fetching recipes: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+  try {
+    final recipes = await _profileService.getUserRecipes(widget.userId, currentUserId: _currentUserId);
+    if (mounted) {
+      setState(() {
+        _recipes = recipes;
+        _isLoading = false;
+      });
+    }
+  } catch (e) {
+    print('Error fetching recipes: $e');
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
 
   Future<void> _checkFollowStatus() async {
     if (_currentUserId == null || _currentUserId == widget.userId) return;

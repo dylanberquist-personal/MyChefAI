@@ -123,52 +123,52 @@ class _RecipeFeedScreenState extends State<RecipeFeedScreen> {
   }
 
   Future<void> _loadInitialRecipes() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
+  try {
+    setState(() {
+      _isLoading = true;
+    });
 
-      List<Recipe> recipes = [];
-      
-      if (_showOnlyFollowing) {
-        // If showing only following but not following anyone, show empty list
-        if (_followingIds.isEmpty) {
-          print('Following list is empty, showing no recipes in Following mode');
-          // Just leave recipes as an empty list
-        } else {
-          // Get recipes only from followed profiles
-          print('Loading recipes from following: ${_followingIds.length} profiles');
-          recipes = await _recipeService.getRecipesFromFollowing(_followingIds, _limit);
-        }
+    List<Recipe> recipes = [];
+    
+    if (_showOnlyFollowing) {
+      // If showing only following but not following anyone, show empty list
+      if (_followingIds.isEmpty) {
+        print('Following list is empty, showing no recipes in Following mode');
+        // Just leave recipes as an empty list
       } else {
-        // Get all recent recipes
-        print('Loading all recent recipes');
-        recipes = await _recipeService.getRecentRecipes(_limit);
+        // Get recipes only from followed profiles
+        print('Loading recipes from following: ${_followingIds.length} profiles');
+        recipes = await _recipeService.getRecipesFromFollowing(_followingIds, _limit, currentUserId: _currentUserId);
       }
-      
-      if (mounted) {
-        setState(() {
-          _recipes = recipes;
-          _isLoading = false;
-          
-          // If we got fewer recipes than the limit, we have no more recipes to load
-          _hasMoreRecipes = recipes.length >= _limit;
-          
-          // Set the last recipe for pagination
-          if (recipes.isNotEmpty) {
-            _lastRecipe = recipes.last;
-          }
-        });
-      }
-    } catch (e) {
-      print('Error loading recipes: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    } else {
+      // Get all recent recipes
+      print('Loading all recent recipes');
+      recipes = await _recipeService.getRecentRecipes(_limit, currentUserId: _currentUserId);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _recipes = recipes;
+        _isLoading = false;
+        
+        // If we got fewer recipes than the limit, we have no more recipes to load
+        _hasMoreRecipes = recipes.length >= _limit;
+        
+        // Set the last recipe for pagination
+        if (recipes.isNotEmpty) {
+          _lastRecipe = recipes.last;
+        }
+      });
+    }
+  } catch (e) {
+    print('Error loading recipes: $e');
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
   
   Future<void> _loadMoreRecipes() async {
     if (!_hasMoreRecipes || _isLoadingMore) return;

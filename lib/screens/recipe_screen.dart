@@ -66,42 +66,42 @@ class _RecipeScreenState extends State<RecipeScreen> {
   
   // Fetch the latest recipe data
   Future<void> _refreshRecipeData() async {
-    if (_currentRecipe.id == null) return;
-    
-    try {
-      final updatedRecipe = await _recipeService.getUpdatedRecipe(_currentRecipe.id!);
-      if (updatedRecipe != null && mounted) {
-        setState(() {
-          _currentRecipe = updatedRecipe;
-          // Update the options helper with the new recipe
-          _optionsHelper = RecipeOptionsHelper(
-            context: context,
-            recipe: _currentRecipe,
-            currentUserId: _currentUserId,
-            onImagePickRequested: () {},  // Will be properly set in didChangeDependencies
-            onRefreshRecipe: _refreshRecipeData,
-            recipeService: _recipeService,
-          );
-        });
+  if (_currentRecipe.id == null) return;
+  
+  try {
+    final updatedRecipe = await _recipeService.getUpdatedRecipe(_currentRecipe.id!, currentUserId: _currentUserId);
+    if (updatedRecipe != null && mounted) {
+      setState(() {
+        _currentRecipe = updatedRecipe;
+        // Update the options helper with the new recipe
+        _optionsHelper = RecipeOptionsHelper(
+          context: context,
+          recipe: _currentRecipe,
+          currentUserId: _currentUserId,
+          onImagePickRequested: () {},  // Will be properly set in didChangeDependencies
+          onRefreshRecipe: _refreshRecipeData,
+          recipeService: _recipeService,
+        );
+      });
+      
+      // Also update favorite status
+      if (_currentUserId != null) {
+        final favorited = await _recipeService.isRecipeFavorited(
+          _currentRecipe.id!,
+          _currentUserId!,
+        );
         
-        // Also update favorite status
-        if (_currentUserId != null) {
-          final favorited = await _recipeService.isRecipeFavorited(
-            _currentRecipe.id!,
-            _currentUserId!,
-          );
-          
-          if (mounted) {
-            setState(() {
-              isFavorited = favorited;
-            });
-          }
+        if (mounted) {
+          setState(() {
+            isFavorited = favorited;
+          });
         }
       }
-    } catch (e) {
-      print('Error refreshing recipe data: $e');
     }
+  } catch (e) {
+    print('Error refreshing recipe data: $e');
   }
+}
 
   Future<void> _fetchCurrentUser() async {
     final user = await _authService.getCurrentUser();
