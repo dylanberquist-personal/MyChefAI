@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/profile.dart';
 import '../screens/profile_screen.dart';
 import '../services/profile_service.dart';
@@ -13,10 +14,13 @@ class ProfileBlock extends StatefulWidget {
   _ProfileBlockState createState() => _ProfileBlockState();
 }
 
-class _ProfileBlockState extends State<ProfileBlock> {
+class _ProfileBlockState extends State<ProfileBlock> with AutomaticKeepAliveClientMixin {
   bool _isFollowing = false;
   final ProfileService _profileService = ProfileService();
   String? _currentUserId;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -85,6 +89,8 @@ class _ProfileBlockState extends State<ProfileBlock> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important: call super.build for keep-alive
+
     return GestureDetector(
       onTap: () {
         // Navigate to the ProfileScreen with the user's UID
@@ -117,19 +123,39 @@ class _ProfileBlockState extends State<ProfileBlock> {
         ),
         child: Row(
           children: [
-            // Profile Picture
+            // Profile Picture with caching
             Container(
               width: 60,
               height: 60,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                image: DecorationImage(
-                  image: widget.profile.profilePicture != null && widget.profile.profilePicture!.isNotEmpty
-                      ? NetworkImage(widget.profile.profilePicture!) // Use NetworkImage for URLs
-                      : AssetImage('assets/images/profile_image_placeholder.png') as ImageProvider, // Use AssetImage for local assets
-                  fit: BoxFit.cover,
-                ),
+                color: Colors.grey[200],
               ),
+              child: widget.profile.profilePicture != null && widget.profile.profilePicture!.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.profile.profilePicture!,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Image.asset(
+                          'assets/images/profile_image_placeholder.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: Image.asset(
+                        'assets/images/profile_image_placeholder.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
             ),
             SizedBox(width: 16),
             // Profile Information

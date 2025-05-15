@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
 import '../models/profile.dart';
 import '../screens/recipe_screen.dart';
@@ -16,16 +17,19 @@ class RecipeBlock extends StatefulWidget {
   _RecipeBlockState createState() => _RecipeBlockState();
 }
 
-class _RecipeBlockState extends State<RecipeBlock> {
+class _RecipeBlockState extends State<RecipeBlock> with AutomaticKeepAliveClientMixin {
   final AuthService _authService = AuthService();
   final RecipeService _recipeService = RecipeService();
-  final ProfileService _profileService = ProfileService(); // Add ProfileService
+  final ProfileService _profileService = ProfileService(); 
   
   bool _isFavorited = false;
   bool _isLoading = true;
   String? _currentUserId;
   late Recipe _currentRecipe;
-  Profile? _creatorProfile; // Add state for creator profile
+  Profile? _creatorProfile; 
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -39,42 +43,28 @@ class _RecipeBlockState extends State<RecipeBlock> {
     if (user != null && _currentRecipe.id != null) {
       final userId = user.uid;
       
-      // Fetch the latest recipe data from Firestore
+      // Only check favorite status - skip fetching updated recipe
+      // and creator profile unless necessary
       try {
-        final updatedRecipe = await _recipeService.getUpdatedRecipe(_currentRecipe.id!);
-        if (updatedRecipe != null && mounted) {
+        final favorited = await _recipeService.isRecipeFavorited(
+          _currentRecipe.id!,
+          userId,
+        );
+        
+        if (mounted) {
           setState(() {
-            _currentRecipe = updatedRecipe;
+            _currentUserId = userId;
+            _isFavorited = favorited;
+            _isLoading = false;
           });
         }
       } catch (e) {
-        print('Error refreshing recipe data: $e');
-      }
-      
-      // Fetch the latest creator profile data
-      try {
-        final creatorProfile = await _profileService.getProfileById(_currentRecipe.creator.uid);
-        if (creatorProfile != null && mounted) {
+        print('Error checking favorite status: $e');
+        if (mounted) {
           setState(() {
-            _creatorProfile = creatorProfile;
+            _isLoading = false;
           });
         }
-      } catch (e) {
-        print('Error fetching creator profile: $e');
-      }
-      
-      // Check if this recipe is favorited by the current user
-      final favorited = await _recipeService.isRecipeFavorited(
-        _currentRecipe.id!,
-        userId,
-      );
-      
-      if (mounted) {
-        setState(() {
-          _currentUserId = userId;
-          _isFavorited = favorited;
-          _isLoading = false;
-        });
       }
     } else {
       if (mounted) {
@@ -87,6 +77,8 @@ class _RecipeBlockState extends State<RecipeBlock> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important: call super.build for the keep-alive
+    
     // Ensure averageRating is a valid number to prevent NaN or Infinity
     final double safeRating = (_currentRecipe.averageRating.isNaN || 
                              _currentRecipe.averageRating.isInfinite) 
@@ -124,23 +116,34 @@ class _RecipeBlockState extends State<RecipeBlock> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Recipe Image
+              // Recipe Image with caching
               ClipRRect(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  _currentRecipe.image ?? 'assets/images/recipe_image_placeholder.png',
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
+                child: _currentRecipe.image != null && _currentRecipe.image!.isNotEmpty 
+                  ? CachedNetworkImage(
+                      imageUrl: _currentRecipe.image!,
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        height: 150,
+                        width: double.infinity,
+                        color: Colors.grey[200],
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) => Image.asset(
+                        'assets/images/recipe_image_placeholder.png',
+                        height: 150,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Image.asset(
                       'assets/images/recipe_image_placeholder.png',
                       height: 150,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                    );
-                  },
-                ),
+                    ),
               ),
               Padding(
                 padding: EdgeInsets.all(16),
@@ -159,25 +162,36 @@ class _RecipeBlockState extends State<RecipeBlock> {
                     // Creator Info
                     Row(
                       children: [
-                        // Profile Picture - Using the latest profile picture from fetched profile
+                        // Profile Picture with caching
                         CircleAvatar(
-                          backgroundImage: (_creatorProfile?.profilePicture != null && 
-                                           _creatorProfile!.profilePicture!.isNotEmpty)
-                              ? NetworkImage(_creatorProfile!.profilePicture!)
-                              : (_currentRecipe.creator.profilePicture != null && 
-                                 _currentRecipe.creator.profilePicture!.isNotEmpty)
-                                  ? NetworkImage(_currentRecipe.creator.profilePicture!)
-                                  : null,
                           radius: 16,
-                          child: ((_creatorProfile?.profilePicture == null || 
-                                  _creatorProfile?.profilePicture?.isEmpty == true) &&
-                                 (_currentRecipe.creator.profilePicture == null || 
-                                  _currentRecipe.creator.profilePicture!.isEmpty))
-                              ? Image.asset(
-                                  'assets/images/profile_image_placeholder.png',
-                                  fit: BoxFit.cover,
+                          backgroundColor: Colors.grey[200],
+                          child: (_creatorProfile?.profilePicture != null && _creatorProfile!.profilePicture!.isNotEmpty) ||
+                                 (_currentRecipe.creator.profilePicture != null && _currentRecipe.creator.profilePicture!.isNotEmpty) 
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: CachedNetworkImage(
+                                    imageUrl: _creatorProfile?.profilePicture ?? _currentRecipe.creator.profilePicture!,
+                                    width: 32,
+                                    height: 32,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      width: 32,
+                                      height: 32,
+                                      color: Colors.grey[200],
+                                    ),
+                                    errorWidget: (context, url, error) => Image.asset(
+                                      'assets/images/profile_image_placeholder.png',
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
                                 )
-                              : null,
+                              : Image.asset(
+                                  'assets/images/profile_image_placeholder.png',
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.cover,
+                                ),
                         ),
                         SizedBox(width: 8),
                         // Creator Name - Using the latest username if available

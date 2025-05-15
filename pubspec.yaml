@@ -23,6 +23,7 @@ dependencies:
   flutter_localizations:  # For localization support to handle different character sets
     sdk: flutter
   intl: ^0.19.0          # Required for localization
+  cached_network_image: ^3.3.0
 
 dev_dependencies:
   flutter_test:
