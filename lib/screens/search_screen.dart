@@ -13,6 +13,7 @@ import '../navigation/no_animation_page_route.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/create_recipe_screen.dart';
+import '../services/data_cache_service.dart'; // Add this import
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -21,14 +22,15 @@ class SearchScreen extends StatefulWidget {
   _SearchScreenState createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClientMixin {
   final RecipeService _recipeService = RecipeService();
   final ProfileService _profileService = ProfileService();
   final AuthService _authService = AuthService();
+  final DataCacheService _dataCache = DataCacheService(); // Add this line
   
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController(); // Add ScrollController
+  final ScrollController _scrollController = ScrollController();
   
   List<Recipe> _recipeResults = [];
   List<Profile> _profileResults = [];
@@ -44,6 +46,16 @@ class _SearchScreenState extends State<SearchScreen> {
   ];
   
   String? _selectedCategory;
+  String _lastQuery = '';
+
+  // Cache keys
+  static const String _recentSearchQueryKey = 'recent_search_query';
+  static const String _recentRecipeResultsKey = 'recent_recipe_results';
+  static const String _recentProfileResultsKey = 'recent_profile_results';
+  static const String _recentCategoryKey = 'recent_search_category';
+
+  @override
+  bool get wantKeepAlive => true; // Keep this screen alive when navigating away
 
   @override
   void initState() {
@@ -53,10 +65,45 @@ class _SearchScreenState extends State<SearchScreen> {
     // Add listener to scroll controller to dismiss keyboard when scrolling down
     _scrollController.addListener(_onScroll);
     
+    // Try to restore previous search state from cache
+    _restoreFromCache();
+    
     // Auto-focus the search field when the screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(_focusNode);
+      if (!_hasSearched) { // Only focus if there's no active search
+        FocusScope.of(context).requestFocus(_focusNode);
+      }
     });
+  }
+
+  void _restoreFromCache() {
+    // Restore recent search query
+    final cachedQuery = _dataCache.get<String>(_recentSearchQueryKey);
+    if (cachedQuery != null && cachedQuery.isNotEmpty) {
+      _searchController.text = cachedQuery;
+      _lastQuery = cachedQuery;
+    }
+    
+    // Restore selected category
+    final cachedCategory = _dataCache.get<String?>(_recentCategoryKey);
+    if (cachedCategory != null) {
+      setState(() {
+        _selectedCategory = cachedCategory;
+      });
+    }
+    
+    // Restore results if they exist
+    final cachedRecipes = _dataCache.get<List<Recipe>>(_recentRecipeResultsKey);
+    final cachedProfiles = _dataCache.get<List<Profile>>(_recentProfileResultsKey);
+    
+    if ((cachedRecipes != null && cachedRecipes.isNotEmpty) || 
+        (cachedProfiles != null && cachedProfiles.isNotEmpty)) {
+      setState(() {
+        _hasSearched = true;
+        _recipeResults = cachedRecipes ?? [];
+        _profileResults = cachedProfiles ?? [];
+      });
+    }
   }
 
   @override
@@ -93,6 +140,7 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _isLoading = true;
       _hasSearched = true;
+      _lastQuery = query; // Store the query for caching
     });
     
     try {
@@ -197,6 +245,12 @@ class _SearchScreenState extends State<SearchScreen> {
           _profileResults = profileResults;
           _isLoading = false;
         });
+        
+        // Cache search results and query
+        _dataCache.set(_recentSearchQueryKey, query);
+        _dataCache.set(_recentRecipeResultsKey, recipeResults);
+        _dataCache.set(_recentProfileResultsKey, profileResults);
+        _dataCache.set(_recentCategoryKey, _selectedCategory);
       }
     } catch (e) {
       print('Search error: $e');
@@ -220,10 +274,32 @@ class _SearchScreenState extends State<SearchScreen> {
       } else {
         _selectedCategory = category;
       }
+      
+      // Cache the selected category
+      _dataCache.set(_recentCategoryKey, _selectedCategory);
     });
     
     // Perform search with the updated category
     _performSearch();
+  }
+  
+  void _clearSearch() {
+    setState(() {
+      _searchController.clear();
+      _selectedCategory = null;
+      _hasSearched = false;
+      _recipeResults = [];
+      _profileResults = [];
+    });
+    
+    // Clear cache for search results
+    _dataCache.remove(_recentSearchQueryKey);
+    _dataCache.remove(_recentRecipeResultsKey);
+    _dataCache.remove(_recentProfileResultsKey);
+    _dataCache.remove(_recentCategoryKey);
+    
+    // Focus the search field
+    FocusScope.of(context).requestFocus(_focusNode);
   }
   
   void _navigateToHome() {
@@ -257,6 +333,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
+    
     return PersistentBottomNavScaffold(
       currentUserId: _currentUserId,
       backgroundColor: Colors.white,
@@ -290,12 +368,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 prefixIcon: Icon(Icons.search),
                 suffixIcon: IconButton(
                   icon: Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    if (_hasSearched) {
-                      _performSearch();
-                    }
-                  },
+                  onPressed: _clearSearch,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
@@ -314,6 +387,14 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         ),
+        actions: [
+          // Add a search button
+          if (_searchController.text.isNotEmpty || _selectedCategory != null)
+            IconButton(
+              icon: Icon(Icons.search),
+              onPressed: _performSearch,
+            ),
+        ],
       ),
       onNavItemTap: (index) {
         if (index == 0) {

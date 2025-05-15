@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import '../models/profile.dart';
 import '../models/recipe.dart';
+import '../models/nutrition.dart';
 import '../models/chat_message.dart';
 import '../services/recipe_service.dart';
 import '../services/auth_service.dart';
@@ -19,6 +20,7 @@ import '../components/recipe_chat_preview.dart';
 import '../components/restart_chat_dialog.dart';
 import '../components/loading_message_manager.dart';
 import '../components/animated_chat_message.dart';
+import '../services/data_cache_service.dart'; // Add this import
 
 class CreateRecipeScreen extends StatefulWidget {
   const CreateRecipeScreen({Key? key}) : super(key: key);
@@ -27,7 +29,7 @@ class CreateRecipeScreen extends StatefulWidget {
   _CreateRecipeScreenState createState() => _CreateRecipeScreenState();
 }
 
-class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBindingObserver {
+class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   final TextEditingController _promptController = TextEditingController();
   final FocusNode _promptFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -35,13 +37,14 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   final ProfileService _profileService = ProfileService();
   final RecipeService _recipeService = RecipeService();
   final LoadingMessageManager _loadingManager = LoadingMessageManager();
+  final DataCacheService _dataCache = DataCacheService(); // Add this line
   
   // State variables
   String? _currentUserId;
   Profile? _currentUserProfile;
   bool _isLoading = false;
   bool _isRecipeGenerated = false;
-  bool _isSavingRecipe = false;  // New state variable for saving state
+  bool _isSavingRecipe = false;
   String _dietaryRestrictions = '';
   
   // Generated recipe data
@@ -58,15 +61,256 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   int _lastAnimatedMessageIndex = -1; // Track the last animated message
   bool _isKeyboardVisible = false;
   
+  // Cache keys
+  static const String _messagesKey = 'create_recipe_messages';
+  static const String _isFirstMessageKey = 'create_recipe_is_first_message';
+  static const String _recipeGeneratedKey = 'create_recipe_generated';
+  static const String _generatedRecipeKey = 'create_recipe_data';
+  static const String _dietaryRestrictionsKey = 'create_recipe_dietary';
+
+  @override
+  bool get wantKeepAlive => true; // Keep this screen alive when navigating away
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this); // Add observer for keyboard visibility
+    
+    // Restore from cache if available
+    _restoreFromCache();
+    
+    // Fetch user data even if restored from cache
     _fetchCurrentUser();
-    _addInitialMessages();
+    
+    // If no messages in cache, add initial message
+    if (_messages.isEmpty) {
+      _addInitialMessages();
+    }
     
     // Add listener to scroll controller to dismiss keyboard when scrolling down
     _scrollController.addListener(_onScroll);
+  }
+  
+  void _restoreFromCache() {
+    // Restore dietary restrictions
+    final cachedDietaryRestrictions = _dataCache.get<String>(_dietaryRestrictionsKey);
+    if (cachedDietaryRestrictions != null) {
+      setState(() {
+        _dietaryRestrictions = cachedDietaryRestrictions;
+      });
+    }
+    
+    // Restore isFirstMessage flag
+    final cachedIsFirstMessage = _dataCache.get<bool>(_isFirstMessageKey);
+    if (cachedIsFirstMessage != null) {
+      setState(() {
+        _isFirstMessage = cachedIsFirstMessage;
+      });
+    }
+    
+    // Restore recipe generated flag
+    final cachedRecipeGenerated = _dataCache.get<bool>(_recipeGeneratedKey);
+    if (cachedRecipeGenerated != null) {
+      setState(() {
+        _isRecipeGenerated = cachedRecipeGenerated;
+      });
+    }
+    
+    // Restore messages if they exist
+    final cachedMessages = _dataCache.get<List<dynamic>>(_messagesKey);
+    if (cachedMessages != null && cachedMessages.isNotEmpty) {
+      setState(() {
+        _messages = cachedMessages.map((msg) {
+          // Basic message restoration - we'll need to rebuild the widgets for special message types
+          final message = ChatMessage(
+            content: msg['content'] ?? '',
+            type: _getMessageTypeFromString(msg['type']),
+            isExpanded: msg['isExpanded'] ?? false,
+            respectsDietaryRestrictions: msg['respectsDietaryRestrictions'],
+            dietaryRestrictions: msg['dietaryRestrictions'],
+          );
+          return message;
+        }).toList();
+        
+        _lastAnimatedMessageIndex = _messages.length - 1;
+      });
+    }
+    
+    // Restore generated recipe data if it exists
+    final cachedRecipeData = _dataCache.get<Map<String, dynamic>>(_generatedRecipeKey);
+    if (cachedRecipeData != null && _isRecipeGenerated) {
+      setState(() {
+        _generatedTitle = cachedRecipeData['title'] ?? '';
+        _generatedIngredients = List<String>.from(cachedRecipeData['ingredients'] ?? []);
+        _generatedInstructions = List<String>.from(cachedRecipeData['instructions'] ?? []);
+        _generatedCategoryTags = List<String>.from(cachedRecipeData['categoryTags'] ?? []);
+        _respectsDietaryRestrictions = cachedRecipeData['respectsDietaryRestrictions'] ?? true;
+        
+        // Rebuild recipe generation result object - needed for recipe preview widget
+        if (_isRecipeGenerated) {
+          _rebuildGeneratedRecipe(cachedRecipeData);
+        }
+        
+        // Rebuild widgets for recipe messages
+        _rebuildRecipeMessageWidgets();
+      });
+    }
+  }
+  
+  void _rebuildGeneratedRecipe(Map<String, dynamic> data) {
+    // Recreate the nutrition object
+    final nutritionData = data['nutrition'] ?? {};
+    final nutrition = nutritionData is Map ? Nutrition(
+      numberOfServings: nutritionData['numberOfServings'] ?? 1,
+      caloriesPerServing: nutritionData['caloriesPerServing'] ?? 0,
+      carbs: nutritionData['carbs'] ?? 0.0,
+      protein: nutritionData['protein'] ?? 0.0,
+      fat: nutritionData['fat'] ?? 0.0,
+      saturatedFat: nutritionData['saturatedFat'] ?? 0.0,
+      polyunsaturatedFat: nutritionData['polyunsaturatedFat'] ?? 0.0,
+      monounsaturatedFat: nutritionData['monounsaturatedFat'] ?? 0.0,
+      transFat: nutritionData['transFat'] ?? 0.0,
+      cholesterol: nutritionData['cholesterol'] ?? 0.0,
+      sodium: nutritionData['sodium'] ?? 0.0,
+      potassium: nutritionData['potassium'] ?? 0.0,
+      fiber: nutritionData['fiber'] ?? 0.0,
+      sugar: nutritionData['sugar'] ?? 0.0,
+      vitaminA: nutritionData['vitaminA'] ?? 0.0,
+      vitaminC: nutritionData['vitaminC'] ?? 0.0,
+      calcium: nutritionData['calcium'] ?? 0.0,
+      iron: nutritionData['iron'] ?? 0.0,
+      unit: nutritionData['unit'] ?? 'g',
+      servingSize: nutritionData['servingSize'] ?? '1 serving',
+    ) : Nutrition(
+      numberOfServings: 1,
+      caloriesPerServing: 0,
+      carbs: 0.0,
+      protein: 0.0,
+      fat: 0.0,
+      saturatedFat: 0.0,
+      polyunsaturatedFat: 0.0,
+      monounsaturatedFat: 0.0,
+      transFat: 0.0,
+      cholesterol: 0.0,
+      sodium: 0.0,
+      potassium: 0.0,
+      fiber: 0.0,
+      sugar: 0.0,
+      vitaminA: 0.0,
+      vitaminC: 0.0,
+      calcium: 0.0,
+      iron: 0.0,
+      unit: 'g',
+      servingSize: '1 serving',
+    );
+    
+    // Recreate the recipe generation result
+    _generatedRecipe = RecipeGenerationResult(
+      title: _generatedTitle,
+      ingredients: _generatedIngredients,
+      instructions: _generatedInstructions,
+      categoryTags: _generatedCategoryTags,
+      respectsDietaryRestrictions: _respectsDietaryRestrictions,
+      nutrition: nutrition,
+    );
+  }
+  
+  void _rebuildRecipeMessageWidgets() {
+    // Find recipe messages and rebuild their widgets
+    for (int i = 0; i < _messages.length; i++) {
+      if (_messages[i].type == MessageType.recipe) {
+        // Calculate index for toggle function
+        final messageIndex = i;
+        
+        // Create a new message with rebuilt widgets
+        _messages[i] = ChatMessage(
+          content: _messages[i].content,
+          type: MessageType.recipe,
+          extraContent: RecipeChatPreview(
+            recipe: _generatedRecipe,
+            isExpanded: false,
+            onToggleExpand: () => _toggleExpandRecipe(messageIndex),
+            onSave: _saveRecipe,
+            isSaving: _isSavingRecipe,
+          ),
+          expandedContent: RecipeChatPreview(
+            recipe: _generatedRecipe,
+            isExpanded: true,
+            onToggleExpand: () => _toggleExpandRecipe(messageIndex),
+            onSave: _saveRecipe,
+            isSaving: _isSavingRecipe,
+          ),
+          respectsDietaryRestrictions: _messages[i].respectsDietaryRestrictions,
+          dietaryRestrictions: _messages[i].dietaryRestrictions,
+          isExpanded: _messages[i].isExpanded,
+        );
+      }
+    }
+  }
+  
+  MessageType _getMessageTypeFromString(String? typeStr) {
+    switch (typeStr) {
+      case 'prompt': return MessageType.prompt;
+      case 'recipe': return MessageType.recipe;
+      case 'response':
+      default: return MessageType.response;
+    }
+  }
+  
+  void _updateCache() {
+    // Cache message data
+    final List<Map<String, dynamic>> messageMaps = _messages.map((msg) => {
+      'content': msg.content,
+      'type': msg.type.toString().split('.').last,
+      'isExpanded': msg.isExpanded,
+      'respectsDietaryRestrictions': msg.respectsDietaryRestrictions,
+      'dietaryRestrictions': msg.dietaryRestrictions,
+    }).toList();
+    
+    _dataCache.set(_messagesKey, messageMaps);
+    _dataCache.set(_isFirstMessageKey, _isFirstMessage);
+    _dataCache.set(_recipeGeneratedKey, _isRecipeGenerated);
+    
+    // Cache generated recipe data if available
+    if (_isRecipeGenerated) {
+      // Create a map of the generated recipe data
+      final Map<String, dynamic> recipeData = {
+        'title': _generatedTitle,
+        'ingredients': _generatedIngredients,
+        'instructions': _generatedInstructions,
+        'categoryTags': _generatedCategoryTags,
+        'respectsDietaryRestrictions': _respectsDietaryRestrictions,
+        'nutrition': {
+          'numberOfServings': _generatedRecipe.nutrition.numberOfServings,
+          'caloriesPerServing': _generatedRecipe.nutrition.caloriesPerServing,
+          'carbs': _generatedRecipe.nutrition.carbs,
+          'protein': _generatedRecipe.nutrition.protein,
+          'fat': _generatedRecipe.nutrition.fat,
+          'saturatedFat': _generatedRecipe.nutrition.saturatedFat,
+          'polyunsaturatedFat': _generatedRecipe.nutrition.polyunsaturatedFat,
+          'monounsaturatedFat': _generatedRecipe.nutrition.monounsaturatedFat,
+          'transFat': _generatedRecipe.nutrition.transFat,
+          'cholesterol': _generatedRecipe.nutrition.cholesterol,
+          'sodium': _generatedRecipe.nutrition.sodium,
+          'potassium': _generatedRecipe.nutrition.potassium,
+          'fiber': _generatedRecipe.nutrition.fiber,
+          'sugar': _generatedRecipe.nutrition.sugar,
+          'vitaminA': _generatedRecipe.nutrition.vitaminA,
+          'vitaminC': _generatedRecipe.nutrition.vitaminC,
+          'calcium': _generatedRecipe.nutrition.calcium,
+          'iron': _generatedRecipe.nutrition.iron,
+          'unit': _generatedRecipe.nutrition.unit,
+          'servingSize': _generatedRecipe.nutrition.servingSize,
+        },
+      };
+      
+      _dataCache.set(_generatedRecipeKey, recipeData);
+    }
+    
+    // Cache dietary restrictions
+    if (_dietaryRestrictions.isNotEmpty) {
+      _dataCache.set(_dietaryRestrictionsKey, _dietaryRestrictions);
+    }
   }
   
   @override
@@ -116,6 +360,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
       )
     );
     _lastAnimatedMessageIndex = 0; // Track that we've animated the first message
+    
+    // Update cache
+    _updateCache();
   }
   
   void _scrollToBottom() {
@@ -129,31 +376,37 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   }
   
   Future<void> _fetchCurrentUser() async {
-  final user = await _authService.getCurrentUser();
-  if (user != null) {
-    setState(() {
-      _currentUserId = user.uid;
-    });
-    
-    final profile = await _profileService.getProfileById(user.uid);
-    if (profile != null) {
+    final user = await _authService.getCurrentUser();
+    if (user != null) {
       setState(() {
-        _currentUserProfile = profile;
-        _dietaryRestrictions = profile.dietaryRestrictions;
+        _currentUserId = user.uid;
       });
       
-      // Update the greeting message with dietary restrictions if they exist
-      if (_dietaryRestrictions.isNotEmpty) {
+      final profile = await _profileService.getProfileById(user.uid);
+      if (profile != null) {
         setState(() {
-          _messages[0] = ChatMessage(
-            content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: ${_dietaryRestrictions}.\n\nEach chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
-            type: MessageType.response,
-          );
+          _currentUserProfile = profile;
+          _dietaryRestrictions = profile.dietaryRestrictions;
         });
+        
+        // Cache dietary restrictions
+        _dataCache.set(_dietaryRestrictionsKey, _dietaryRestrictions);
+        
+        // Update the greeting message with dietary restrictions if they exist
+        if (_dietaryRestrictions.isNotEmpty && _messages.isNotEmpty) {
+          setState(() {
+            _messages[0] = ChatMessage(
+              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: ${_dietaryRestrictions}.\n\nEach chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
+              type: MessageType.response,
+            );
+          });
+          
+          // Update cache
+          _updateCache();
+        }
       }
     }
   }
-}
   
   Future<void> _handleSendPrompt() async {
     final prompt = _promptController.text.trim();
@@ -171,6 +424,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
       _promptController.clear();
     });
     _scrollToBottom();
+    
+    // Update cache
+    _updateCache();
 
     if (_currentUserProfile == null) {
       setState(() {
@@ -183,6 +439,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
         _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
       });
       _scrollToBottom();
+      
+      // Update cache
+      _updateCache();
       return;
     }
     
@@ -199,6 +458,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
       _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
     });
     _scrollToBottom();
+    
+    // Update cache
+    _updateCache();
     
     // Start cycling loading messages
     _loadingManager.startCycling(
@@ -229,6 +491,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
         _lastAnimatedMessageIndex = _messages.length - 1; // Update last animated message
       });
       _scrollToBottom();
+      
+      // Update cache
+      _updateCache();
     } finally {
       _loadingManager.stopCycling();
     }
@@ -238,6 +503,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
     setState(() {
       _messages[index].isExpanded = !_messages[index].isExpanded;
     });
+    
+    // Update cache
+    _updateCache();
   }
   
   Future<void> _generateNewRecipe(String prompt) async {
@@ -311,6 +579,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
           _isFirstMessage = false;
         });
         _scrollToBottom();
+        
+        // Update cache
+        _updateCache();
       }
     } catch (e) {
       throw e;
@@ -392,6 +663,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
           _lastAnimatedMessageIndex = _messages.length - 1;
         });
         _scrollToBottom();
+        
+        // Update cache
+        _updateCache();
       }
     } catch (e) {
       throw e;
@@ -443,6 +717,9 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
         _lastAnimatedMessageIndex = _messages.length - 1;
       });
       _scrollToBottom();
+      
+      // Update cache
+      _updateCache();
       
       final newRecipe = Recipe(
         id: null,
@@ -497,6 +774,12 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
         });
         _scrollToBottom();
         
+        // Update cache
+        _updateCache();
+        
+        // Clear cache before navigating so we start with a fresh state next time
+        _clearCacheForNewConversation();
+        
         // Navigate to recipe screen after a short delay
         Future.delayed(Duration(seconds: 1), () {
           Navigator.pushReplacement(
@@ -525,44 +808,61 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
           _lastAnimatedMessageIndex = _messages.length - 1;
         });
         _scrollToBottom();
+        
+        // Update cache
+        _updateCache();
       }
     }
   }
   
+  void _clearCacheForNewConversation() {
+    _dataCache.remove(_messagesKey);
+    _dataCache.remove(_isFirstMessageKey);
+    _dataCache.remove(_recipeGeneratedKey);
+    _dataCache.remove(_generatedRecipeKey);
+    // Don't remove dietary restrictions as they should persist
+  }
+  
   void _restartChat() {
-  RestartChatDialog.show(
-    context: context,
-    onRestartConfirmed: () {
-      setState(() {
-        // Use the consolidated message style
-        if (_dietaryRestrictions.isEmpty) {
-          _messages = [
-            ChatMessage(
-              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. Each chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
-              type: MessageType.response,
-            )
-          ];
-        } else {
-          _messages = [
-            ChatMessage(
-              content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: ${_dietaryRestrictions}.\n\nEach chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
-              type: MessageType.response,
-            )
-          ];
-        }
+    RestartChatDialog.show(
+      context: context,
+      onRestartConfirmed: () {
+        setState(() {
+          // Use the consolidated message style
+          if (_dietaryRestrictions.isEmpty) {
+            _messages = [
+              ChatMessage(
+                content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. Each chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
+                type: MessageType.response,
+              )
+            ];
+          } else {
+            _messages = [
+              ChatMessage(
+                content: 'Hi there! Tell me what you\'d like to cook, and I\'ll create a custom recipe for you. I\'ll account for your dietary preferences: ${_dietaryRestrictions}.\n\nEach chat creates a single recipe - after your first message, all follow-up messages will modify that recipe. To start fresh, use the restart button in the top right.',
+                type: MessageType.response,
+              )
+            ];
+          }
+          
+          _lastAnimatedMessageIndex = 0; // Reset animation for the first message
+          _isFirstMessage = true;
+          _isRecipeGenerated = false;
+          _isLoading = false;
+          _isSavingRecipe = false; // Reset saving state
+        });
         
-        _lastAnimatedMessageIndex = 0; // Reset animation for the first message
-        _isFirstMessage = true;
-        _isRecipeGenerated = false;
-        _isLoading = false;
-        _isSavingRecipe = false; // Reset saving state
-      });
-    }
-  );
-}
+        // Clear existing cache and save new state
+        _clearCacheForNewConversation();
+        _updateCache();
+      }
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
+    
     return PersistentBottomNavScaffold(
       currentUserId: _currentUserId,
       backgroundColor: Color(0xFFF7F7F7),

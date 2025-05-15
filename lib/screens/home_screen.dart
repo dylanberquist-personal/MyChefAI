@@ -1,3 +1,4 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import '../components/footer_nav_bar.dart';
 import '../components/recipe_block.dart';
@@ -11,21 +12,23 @@ import '../services/profile_service.dart';
 import '../models/recipe.dart';
 import '../models/profile.dart';
 import '../screens/profile_screen.dart';
-import '../screens/create_recipe_screen.dart'; // Add this import
+import '../screens/create_recipe_screen.dart';
 import '../services/auth_service.dart';
 import '../navigation/no_animation_page_route.dart';
 import '../screens/recipe_feed_screen.dart';
+import '../services/data_cache_service.dart'; // Add this import
 
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
   final RecipeService _recipeService = RecipeService();
   final ProfileService _profileService = ProfileService();
   final AuthService _authService = AuthService();
   final ScrollController _scrollController = ScrollController();
+  final DataCacheService _dataCache = DataCacheService(); // Add this line
   String? _currentUserId;
   Profile? _currentUserProfile;
 
@@ -36,11 +39,42 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingFeatured = true;
   bool _isLoadingRecent = true;
   bool _isLoadingChefs = true;
+  
+  // Define cache keys
+  static const String _featuredRecipeKey = 'home_featured_recipe';
+  static const String _recentRecipesKey = 'home_recent_recipes';
+  static const String _topChefsKey = 'home_top_chefs';
+
+  @override
+  bool get wantKeepAlive => true; // Keep this screen alive when navigating away
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    
+    // Check cache for data
+    if (_dataCache.has(_featuredRecipeKey)) {
+      setState(() {
+        _featuredRecipe = _dataCache.get<Recipe?>(_featuredRecipeKey);
+        _isLoadingFeatured = false;
+      });
+    }
+    
+    if (_dataCache.has(_recentRecipesKey)) {
+      setState(() {
+        _recentRecipes = _dataCache.get<List<Recipe>>(_recentRecipesKey) ?? [];
+        _isLoadingRecent = false;
+      });
+    }
+    
+    if (_dataCache.has(_topChefsKey)) {
+      setState(() {
+        _topChefs = _dataCache.get<List<Profile>>(_topChefsKey) ?? [];
+        _isLoadingChefs = false;
+      });
+    }
+    
     _fetchCurrentUser();
     _loadData();
   }
@@ -87,6 +121,11 @@ class _HomeScreenState extends State<HomeScreen> {
           _featuredRecipe = recipe;
           _isLoadingFeatured = false;
         });
+        
+        // Cache the data with 5-minute expiry
+        if (recipe != null) {
+          _dataCache.setWithExpiry(_featuredRecipeKey, recipe, Duration(minutes: 5));
+        }
       }
     } catch (e) {
       print('Error loading featured recipe: $e');
@@ -106,6 +145,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _recentRecipes = recipes;
           _isLoadingRecent = false;
         });
+        
+        // Cache the data with 2-minute expiry - recent recipes need more frequent updates
+        _dataCache.setWithExpiry(_recentRecipesKey, recipes, Duration(minutes: 2));
       }
     } catch (e) {
       print('Error loading recent recipes: $e');
@@ -132,6 +174,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _topChefs = profiles.take(5).toList();
           _isLoadingChefs = false;
         });
+        
+        // Cache the data with 10-minute expiry - top chefs don't change as frequently
+        _dataCache.setWithExpiry(_topChefsKey, _topChefs, Duration(minutes: 10));
       }
     } catch (e) {
       print('Error loading top chefs: $e');
@@ -150,7 +195,10 @@ class _HomeScreenState extends State<HomeScreen> {
         NoAnimationPageRoute(
           builder: (context) => ProfileScreen(userId: _currentUserId!),
         ),
-      );
+      ).then((_) {
+        // Refresh data when returning from profile screen
+        _loadData();
+      });
     }
   }
   
@@ -161,11 +209,16 @@ class _HomeScreenState extends State<HomeScreen> {
       NoAnimationPageRoute(
         builder: (context) => CreateRecipeScreen(),
       ),
-    );
+    ).then((_) {
+      // Refresh recent recipes when returning from create recipe screen
+      _loadRecentRecipes();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
+    
     // Define spacing constants here directly in the build method
     const double sectionSpacing = 32.0; // Space between sections
     const double headerToContentSpacing = 20.0; // Consistent 20px spacing between all headers and content
@@ -255,7 +308,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         NoAnimationPageRoute(
                           builder: (context) => RecipeFeedScreen(),
                         ),
-                      );
+                      ).then((_) {
+                        // Refresh recipes when returning from feed
+                        _loadRecentRecipes();
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,

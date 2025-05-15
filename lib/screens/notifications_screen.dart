@@ -13,6 +13,7 @@ import '../screens/recipe_screen.dart';
 import '../screens/create_recipe_screen.dart';
 import '../services/recipe_service.dart';
 import '../services/profile_service.dart';
+import '../services/data_cache_service.dart'; // Add this import
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -21,20 +22,81 @@ class NotificationsScreen extends StatefulWidget {
   _NotificationsScreenState createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen> with AutomaticKeepAliveClientMixin {
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
   final RecipeService _recipeService = RecipeService();
   final ProfileService _profileService = ProfileService();
+  final DataCacheService _dataCache = DataCacheService(); // Add this line
   
   List<UserNotification> _notifications = [];
   bool _isLoading = true;
   String? _currentUserId;
   
+  // Cache keys
+  static const String _notificationsKey = 'user_notifications';
+  static const String _notificationsTimestampKey = 'notifications_timestamp';
+  
+  @override
+  bool get wantKeepAlive => true; // Keep this screen alive when navigating away
+  
   @override
   void initState() {
     super.initState();
+    
+    // Try to restore notifications from cache first
+    _restoreFromCache();
+    
+    // Fetch current user and load notifications
     _fetchCurrentUser();
+  }
+  
+  void _restoreFromCache() {
+    final cachedNotifications = _dataCache.get<List<dynamic>>(_notificationsKey);
+    final cachedTimestamp = _dataCache.get<DateTime>(_notificationsTimestampKey);
+    
+    if (cachedNotifications != null && cachedNotifications.isNotEmpty) {
+      setState(() {
+        _notifications = cachedNotifications.map((notifData) {
+          // Convert Map<dynamic, dynamic> to Map<String, dynamic>
+          Map<String, dynamic> data = {};
+          (notifData as Map).forEach((key, value) {
+            data[key.toString()] = value;
+          });
+          
+          return UserNotification(
+            id: data['id'] ?? '',
+            type: _getNotificationTypeFromString(data['type']),
+            recipientId: data['recipientId'] ?? '',
+            senderId: data['senderId'],
+            senderUsername: data['senderUsername'],
+            senderProfilePicture: data['senderProfilePicture'],
+            recipeId: data['recipeId'],
+            recipeName: data['recipeName'],
+            isRead: data['isRead'] ?? false,
+            createdAt: data['createdAt'] != null ? 
+              DateTime.parse(data['createdAt']) : 
+              DateTime.now(),
+          );
+        }).toList();
+        
+        // If cache is older than 5 minutes, we'll still show loading indicator
+        bool isCacheStale = cachedTimestamp == null || 
+            DateTime.now().difference(cachedTimestamp).inMinutes > 5;
+        
+        _isLoading = isCacheStale;
+      });
+    }
+  }
+  
+  NotificationType _getNotificationTypeFromString(String? typeStr) {
+    switch (typeStr) {
+      case 'follower': return NotificationType.follower;
+      case 'favorite': return NotificationType.favorite;
+      case 'rating': return NotificationType.rating;
+      case 'newRecipe': return NotificationType.newRecipe;
+      default: return NotificationType.follower; // Default case
+    }
   }
   
   Future<void> _fetchCurrentUser() async {
@@ -61,17 +123,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final notifications = await _notificationService.getUserNotifications();
       print('Loaded ${notifications.length} notifications');
       
-      // Log the specific notifications to help with debugging
-      for (var notification in notifications) {
-        print('Notification: type=${notification.type}, isRead=${notification.isRead}, '
-              'id=${notification.id}');
-      }
-      
       if (mounted) {
         setState(() {
           _notifications = notifications;
           _isLoading = false;
         });
+        
+        // Cache the notifications and timestamp
+        _cacheNotifications();
       }
     } catch (e) {
       print('Error loading notifications: $e');
@@ -81,6 +140,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         });
       }
     }
+  }
+  
+  void _cacheNotifications() {
+    // Convert notifications to maps for caching
+    final notificationMaps = _notifications.map((notification) => {
+      'id': notification.id,
+      'type': notification.type.toString().split('.').last,
+      'recipientId': notification.recipientId,
+      'senderId': notification.senderId,
+      'senderUsername': notification.senderUsername,
+      'senderProfilePicture': notification.senderProfilePicture,
+      'recipeId': notification.recipeId,
+      'recipeName': notification.recipeName,
+      'isRead': notification.isRead,
+      'createdAt': notification.createdAt.toIso8601String(),
+    }).toList();
+    
+    _dataCache.set(_notificationsKey, notificationMaps);
+    _dataCache.set(_notificationsTimestampKey, DateTime.now());
   }
   
   // Mark all notifications as read
@@ -95,9 +173,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             notification.isRead = true;
           }
         });
+        
+        // Update cache
+        _cacheNotifications();
       }
-      
-      // SnackBar notification removed
     } catch (e) {
       print('Error marking all as read: $e');
     }
@@ -115,6 +194,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         setState(() {
           notification.isRead = true;
         });
+        
+        // Update cache
+        _cacheNotifications();
       }
     } catch (e) {
       print('Error marking notification as read: $e');
@@ -189,6 +271,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
+    
     return PersistentBottomNavScaffold(
       currentUserId: _currentUserId,
       backgroundColor: Colors.white,
@@ -298,8 +382,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     IconData icon;
     Color iconColor;
     String message;
-    
-    print('Building notification UI for type: ${notification.type}');
     
     switch (notification.type) {
       case NotificationType.follower:
