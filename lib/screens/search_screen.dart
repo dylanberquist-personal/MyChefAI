@@ -13,12 +13,10 @@ import '../navigation/no_animation_page_route.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/create_recipe_screen.dart';
-import '../services/data_cache_service.dart';
+import '../services/data_cache_service.dart'; // Add this import
 
 class SearchScreen extends StatefulWidget {
-  final bool isPersistentNavigation;
-  
-  const SearchScreen({Key? key, this.isPersistentNavigation = false}) : super(key: key);
+  const SearchScreen({Key? key}) : super(key: key);
 
   @override
   _SearchScreenState createState() => _SearchScreenState();
@@ -28,7 +26,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   final RecipeService _recipeService = RecipeService();
   final ProfileService _profileService = ProfileService();
   final AuthService _authService = AuthService();
-  final DataCacheService _dataCache = DataCacheService();
+  final DataCacheService _dataCache = DataCacheService(); // Add this line
   
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -337,150 +335,135 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   Widget build(BuildContext context) {
     super.build(context); // Important for AutomaticKeepAliveClientMixin
     
-    // Use conditional to determine whether to include the nav bar
-    return widget.isPersistentNavigation 
-      ? _buildMainContent() 
-      : PersistentBottomNavScaffold(
-          currentUserId: _currentUserId,
-          backgroundColor: Colors.white,
-          appBar: _buildAppBar(),
-          onNavItemTap: (index) {
-            if (index == 0) {
-              _navigateToHome();
-            } else if (index == 2) {
-              _navigateToCreateRecipe();
-            } else if (index == 4 && _currentUserId != null) {
-              _navigateToProfile();
-            }
-          },
-          body: _buildMainContent(),
-        );
-  }
-  
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
       backgroundColor: Colors.white,
-      elevation: 0,
-      shadowColor: Colors.transparent,
-      surfaceTintColor: Colors.white, // Prevent color change on scroll
-      scrolledUnderElevation: 0, // Prevent elevation on scroll
-      iconTheme: IconThemeData(color: Colors.black),
-      leading: Transform.translate(
-        offset: Offset(8, 0),
-        child: Transform.scale(
-          scale: 1.2,
-          child: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-      ),
-      leadingWidth: 56, // Default leadingWidth
-      titleSpacing: 0, // Remove spacing between leading and title
-      title: Expanded(
-        child: Padding(
-          padding: EdgeInsets.only(right: 16.0),
-          child: TextField(
-            controller: _searchController,
-            focusNode: _focusNode,
-            decoration: InputDecoration(
-              hintText: 'Search recipes and profiles...',
-              prefixIcon: Icon(Icons.search),
-              suffixIcon: IconButton(
-                icon: Icon(Icons.clear),
-                onPressed: _clearSearch,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide(color: Color(0xFFD3D3D3)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide(color: Color(0xFFFFFFC1), width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.white, // Prevent color change on scroll
+        scrolledUnderElevation: 0, // Prevent elevation on scroll
+        iconTheme: IconThemeData(color: Colors.black),
+        leading: Transform.translate(
+          offset: Offset(8, 0),
+          child: Transform.scale(
+            scale: 1.2,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
             ),
-            onSubmitted: (_) => _performSearch(),
-            textInputAction: TextInputAction.search,
           ),
         ),
-      ),
-      actions: [
-        // Add a search button
-        if (_searchController.text.isNotEmpty || _selectedCategory != null)
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: _performSearch,
-          ),
-      ],
-    );
-  }
-  
-  Widget _buildMainContent() {
-    return Column(
-      children: [
-        // App bar when in persistent navigation mode
-        if (widget.isPersistentNavigation)
-          _buildAppBar(),
-        
-        // Category Tags using existing component, but made toggleable
-        Container(
-          height: 50,
-          margin: EdgeInsets.symmetric(vertical: 8),
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              // Use a Wrap widget to make the layout more flexible
-              Wrap(
-                spacing: 8, // Gap between tags
-                children: _popularCategories.map((category) {
-                  final isSelected = _selectedCategory == category;
-                  
-                  // Wrap the CategoryTags widget with a GestureDetector to make it toggleable
-                  return GestureDetector(
-                    onTap: () => _selectCategory(category),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected ? Color(0xFFFFFFC1) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? Color(0xFFFFFFC1) : Color(0xFFD3D3D3),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            offset: Offset(2, 2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Text(
-                        category,
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                          fontFamily: 'Open Sans',
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+        leadingWidth: 56, // Default leadingWidth
+        titleSpacing: 0, // Remove spacing between leading and title
+        title: Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: 16.0),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _focusNode,
+              decoration: InputDecoration(
+                hintText: 'Search recipes and profiles...',
+                prefixIcon: Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.clear),
+                  onPressed: _clearSearch,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Color(0xFFD3D3D3)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Color(0xFFFFFFC1), width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               ),
-            ],
+              onSubmitted: (_) => _performSearch(),
+              textInputAction: TextInputAction.search,
+            ),
           ),
         ),
-        
-        // Results
-        Expanded(
-          child: _buildSearchResults(),
-        ),
-      ],
+        actions: [
+          // Add a search button
+          if (_searchController.text.isNotEmpty || _selectedCategory != null)
+            IconButton(
+              icon: Icon(Icons.search),
+              onPressed: _performSearch,
+            ),
+        ],
+      ),
+      onNavItemTap: (index) {
+        if (index == 0) {
+          _navigateToHome();
+        } else if (index == 2) {
+          _navigateToCreateRecipe();
+        } else if (index == 4 && _currentUserId != null) {
+          _navigateToProfile();
+        }
+      },
+      body: Column(
+        children: [
+          // Category Tags using existing component, but made toggleable
+          Container(
+            height: 50,
+            margin: EdgeInsets.symmetric(vertical: 8),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                // Use a Wrap widget to make the layout more flexible
+                Wrap(
+                  spacing: 8, // Gap between tags
+                  children: _popularCategories.map((category) {
+                    final isSelected = _selectedCategory == category;
+                    
+                    // Wrap the CategoryTags widget with a GestureDetector to make it toggleable
+                    return GestureDetector(
+                      onTap: () => _selectCategory(category),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected ? Color(0xFFFFFFC1) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? Color(0xFFFFFFC1) : Color(0xFFD3D3D3),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              offset: Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontFamily: 'Open Sans',
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          
+          // Results
+          Expanded(
+            child: _buildSearchResults(),
+          ),
+        ],
+      ),
     );
   }
   
