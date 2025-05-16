@@ -23,13 +23,8 @@ import '../services/data_cache_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
-  final bool isPersistentNavigation;
 
-  const ProfileScreen({
-    Key? key, 
-    required this.userId, 
-    this.isPersistentNavigation = false
-  }) : super(key: key);
+  const ProfileScreen({Key? key, required this.userId}) : super(key: key);
 
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
@@ -462,64 +457,49 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       );
     }
 
-    // Use conditional to determine whether to include the nav bar
-    return widget.isPersistentNavigation 
-      ? _buildMainContent() 
-      : PersistentBottomNavScaffold(
-          currentUserId: _currentUserId,
-          currentProfileUserId: widget.userId,
-          extendBodyBehindAppBar: true,
-          backgroundColor: Colors.white,
-          appBar: _buildAppBar(),
-          onNavItemTap: (index) {
-            if (index == 0) {
-              _navigateToHome();
-            } else if (index == 2) {
-              _navigateToCreateRecipe();
-            } else if (index == 4 && _currentUserId != null && _currentUserId != widget.userId) {
-              Navigator.pushReplacement(
-                context,
-                NoAnimationPageRoute(
-                  builder: (context) => ProfileScreen(userId: _currentUserId!),
-                ),
-              );
-            }
-          },
-          body: _buildMainContent(),
-        );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      iconTheme: IconThemeData(color: Colors.black),
-      leading: Transform.translate(
-        offset: Offset(8, 0),
-        child: Transform.scale(
-          scale: 1.2,
-          child: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-      ),
-      systemOverlayStyle: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-      scrolledUnderElevation: 0,
-      surfaceTintColor: Colors.transparent,
-      shadowColor: Colors.transparent,
-    );
-  }
-  
-  Widget _buildMainContent() {
     final isOwnProfile = _currentUserId == widget.userId;
 
-    return Scaffold(
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
+      currentProfileUserId: widget.userId,
+      extendBodyBehindAppBar: true,
       backgroundColor: Colors.white,
-      appBar: widget.isPersistentNavigation ? _buildAppBar() : null,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
+        leading: Transform.translate(
+          offset: Offset(8, 0),
+          child: Transform.scale(
+            scale: 1.2,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+      ),
+      onNavItemTap: (index) {
+        if (index == 0) {
+          _navigateToHome();
+        } else if (index == 2) {
+          _navigateToCreateRecipe();
+        } else if (index == 4 && _currentUserId != null && _currentUserId != widget.userId) {
+          Navigator.pushReplacement(
+            context,
+            NoAnimationPageRoute(
+              builder: (context) => ProfileScreen(userId: _currentUserId!),
+            ),
+          );
+        }
+      },
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: SingleChildScrollView(
@@ -667,9 +647,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     sectionSpacing: _sectionSpacing,
                   ),
                 ),
-                
-              // Add bottom padding for nav bar
-              SizedBox(height: 80),
             ],
           ),
         ),

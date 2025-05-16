@@ -1,13 +1,11 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // Add this import
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
-import 'screens/root_screen.dart'; // Add this import
 import 'services/auth_service.dart';
 import 'services/profile_service.dart';
 import 'navigation/no_animation_page_route.dart';
@@ -212,8 +210,8 @@ class MyApp extends StatelessWidget {
                   // No profile exists, navigate to OnboardingScreen
                   return OnboardingScreen(uid: snapshot.data!.uid);
                 } else {
-                  // Profile exists, navigate to RootScreen instead of HomeScreen
-                  return RootScreen();
+                  // Profile exists, navigate to HomeScreen
+                  return HomeScreen();
                 }
               },
             );
@@ -229,8 +227,6 @@ class MyApp extends StatelessWidget {
         } else if (settings.name == '/onboarding') {
           final uid = settings.arguments as String;
           return NoAnimationPageRoute(builder: (context) => OnboardingScreen(uid: uid));
-        } else if (settings.name == '/root') {
-          return NoAnimationPageRoute(builder: (context) => RootScreen());
         }
         return null;
       },

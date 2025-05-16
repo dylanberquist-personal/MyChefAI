@@ -20,12 +20,10 @@ import '../components/recipe_chat_preview.dart';
 import '../components/restart_chat_dialog.dart';
 import '../components/loading_message_manager.dart';
 import '../components/animated_chat_message.dart';
-import '../services/data_cache_service.dart';
+import '../services/data_cache_service.dart'; // Add this import
 
 class CreateRecipeScreen extends StatefulWidget {
-  final bool isPersistentNavigation;
-  
-  const CreateRecipeScreen({Key? key, this.isPersistentNavigation = false}) : super(key: key);
+  const CreateRecipeScreen({Key? key}) : super(key: key);
 
   @override
   _CreateRecipeScreenState createState() => _CreateRecipeScreenState();
@@ -39,7 +37,7 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   final ProfileService _profileService = ProfileService();
   final RecipeService _recipeService = RecipeService();
   final LoadingMessageManager _loadingManager = LoadingMessageManager();
-  final DataCacheService _dataCache = DataCacheService();
+  final DataCacheService _dataCache = DataCacheService(); // Add this line
   
   // State variables
   String? _currentUserId;
@@ -865,65 +863,50 @@ class _CreateRecipeScreenState extends State<CreateRecipeScreen> with WidgetsBin
   Widget build(BuildContext context) {
     super.build(context); // Important for AutomaticKeepAliveClientMixin
     
-    // Use conditional to determine whether to include the nav bar
-    return widget.isPersistentNavigation 
-      ? _buildMainContent() 
-      : PersistentBottomNavScaffold(
-          currentUserId: _currentUserId,
-          backgroundColor: Color(0xFFF7F7F7),
-          resizeToAvoidBottomInset: true,
-          onNavItemTap: (index) {
-            // Navigation handled by the scaffold
-          },
-          appBar: _buildAppBar(),
-          body: _buildMainContent(),
-        );
-  }
-  
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      iconTheme: IconThemeData(color: Colors.black),
-      title: Text(
-        'Create a new recipe',
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 24,
-          fontFamily: 'Open Sans',
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      leading: Transform.translate(
-        offset: Offset(8, 0),
-        child: Transform.scale(
-          scale: 1.2,
-          child: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-      ),
-      actions: [
-        // Add restart button
-        Container(
-          margin: EdgeInsets.only(right: 16),
-          child: IconButton(
-            icon: Icon(Icons.refresh),
-            tooltip: 'New Recipe',
-            onPressed: _restartChat,
-          ),
-        ),
-      ],
-      surfaceTintColor: Colors.white,
-      shadowColor: Colors.transparent,
-    );
-  }
-  
-  Widget _buildMainContent() {
-    return Scaffold(
+    return PersistentBottomNavScaffold(
+      currentUserId: _currentUserId,
       backgroundColor: Color(0xFFF7F7F7),
-      appBar: widget.isPersistentNavigation ? _buildAppBar() : null,
+      resizeToAvoidBottomInset: true,
+      onNavItemTap: (index) {
+        // Navigation handled by the scaffold
+      },
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
+        title: Text(
+          'Create a new recipe',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 24,
+            fontFamily: 'Open Sans',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        leading: Transform.translate(
+          offset: Offset(8, 0),
+          child: Transform.scale(
+            scale: 1.2,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+        actions: [
+          // Add restart button
+          Container(
+            margin: EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: Icon(Icons.refresh),
+              tooltip: 'New Recipe',
+              onPressed: _restartChat,
+            ),
+          ),
+        ],
+        surfaceTintColor: Colors.white,
+        shadowColor: Colors.transparent,
+      ),
       body: Column(
         children: [
           // Chat messages area - optimized with caching
