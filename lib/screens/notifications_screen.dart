@@ -13,10 +13,12 @@ import '../screens/recipe_screen.dart';
 import '../screens/create_recipe_screen.dart';
 import '../services/recipe_service.dart';
 import '../services/profile_service.dart';
-import '../services/data_cache_service.dart'; // Add this import
+import '../services/data_cache_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+  final bool isPersistentNavigation;
+  
+  const NotificationsScreen({Key? key, this.isPersistentNavigation = false}) : super(key: key);
 
   @override
   _NotificationsScreenState createState() => _NotificationsScreenState();
@@ -27,7 +29,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with Automati
   final AuthService _authService = AuthService();
   final RecipeService _recipeService = RecipeService();
   final ProfileService _profileService = ProfileService();
-  final DataCacheService _dataCache = DataCacheService(); // Add this line
+  final DataCacheService _dataCache = DataCacheService();
   
   List<UserNotification> _notifications = [];
   bool _isLoading = true;
@@ -273,55 +275,77 @@ class _NotificationsScreenState extends State<NotificationsScreen> with Automati
   Widget build(BuildContext context) {
     super.build(context); // Important for AutomaticKeepAliveClientMixin
     
-    return PersistentBottomNavScaffold(
-      currentUserId: _currentUserId,
+    // Use conditional to determine whether to include the nav bar
+    return widget.isPersistentNavigation 
+      ? _buildMainContent() 
+      : PersistentBottomNavScaffold(
+          currentUserId: _currentUserId,
+          backgroundColor: Colors.white,
+          appBar: _buildAppBar(),
+          onNavItemTap: (index) {
+            if (index == 0) {
+              _navigateToHome();
+            } else if (index == 2) {
+              _navigateToCreateRecipe();
+            } else if (index == 4 && _currentUserId != null) {
+              _navigateToProfile();
+            }
+          },
+          body: _buildMainContent(),
+        );
+  }
+  
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: IconThemeData(color: Colors.black),
-        title: Text(
-          'Notifications',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 24,
-            fontFamily: 'Open Sans',
-            fontWeight: FontWeight.w700,
-          ),
+      elevation: 0,
+      iconTheme: IconThemeData(color: Colors.black),
+      title: Text(
+        'Notifications',
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: 24,
+          fontFamily: 'Open Sans',
+          fontWeight: FontWeight.w700,
         ),
-        actions: [
-          // Mark all as read button (only button in app bar now)
-          if (_notifications.any((n) => !n.isRead))
-            TextButton(
-              onPressed: _markAllAsRead,
-              child: Text(
-                'Mark all as read',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontFamily: 'Open Sans',
-                  fontWeight: FontWeight.w600,
-                ),
+      ),
+      actions: [
+        // Mark all as read button (only button in app bar now)
+        if (_notifications.any((n) => !n.isRead))
+          TextButton(
+            onPressed: _markAllAsRead,
+            child: Text(
+              'Mark all as read',
+              style: TextStyle(
+                color: Colors.black,
+                fontFamily: 'Open Sans',
+                fontWeight: FontWeight.w600,
               ),
             ),
-        ],
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-        ),
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.white,
-        shadowColor: Colors.transparent,
+          ),
+      ],
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
       ),
-      onNavItemTap: (index) {
-        if (index == 0) {
-          _navigateToHome();
-        } else if (index == 2) {
-          _navigateToCreateRecipe();
-        } else if (index == 4 && _currentUserId != null) {
-          _navigateToProfile();
-        }
-      },
-      body: _buildNotificationsList(),
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.white,
+      shadowColor: Colors.transparent,
+    );
+  }
+  
+  Widget _buildMainContent() {
+    return Column(
+      children: [
+        // Show app bar when in persistent navigation mode
+        if (widget.isPersistentNavigation)
+          _buildAppBar(),
+        
+        // Notifications list
+        Expanded(
+          child: _buildNotificationsList(),
+        ),
+      ],
     );
   }
   

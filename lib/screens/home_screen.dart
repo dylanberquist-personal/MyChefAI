@@ -19,6 +19,10 @@ import '../screens/recipe_feed_screen.dart';
 import '../services/data_cache_service.dart'; // Add this import
 
 class HomeScreen extends StatefulWidget {
+  final bool isPersistentNavigation;
+  
+  const HomeScreen({Key? key, this.isPersistentNavigation = false}) : super(key: key);
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -219,6 +223,27 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget build(BuildContext context) {
     super.build(context); // Important for AutomaticKeepAliveClientMixin
     
+    // Use conditional to determine whether to include the nav bar
+    return widget.isPersistentNavigation 
+      ? _buildMainContent() 
+      : PersistentBottomNavScaffold(
+          currentUserId: _currentUserId,
+          backgroundColor: Colors.white,
+          onNavItemTap: (index) {
+            if (index == 0) {
+              // Already on home screen, do nothing
+            } else if (index == 2) {
+              // Create Recipe button pressed
+              _navigateToCreateRecipe();
+            } else if (index == 4 && _currentUserId != null) {
+              _navigateToProfile();
+            }
+          },
+          body: _buildMainContent(),
+        );
+  }
+  
+  Widget _buildMainContent() {
     // Define spacing constants here directly in the build method
     const double sectionSpacing = 32.0; // Space between sections
     const double headerToContentSpacing = 20.0; // Consistent 20px spacing between all headers and content
@@ -226,225 +251,211 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     const double chefProfileSpacing = 8.0; // Spacing between profile blocks
     const double contentSpacing = 16.0; // Regular content spacing (for loading indicators, etc.)
     
-    return PersistentBottomNavScaffold(
-      currentUserId: _currentUserId,
-      backgroundColor: Colors.white,
-      onNavItemTap: (index) {
-        if (index == 0) {
-          // Already on home screen, do nothing
-        } else if (index == 2) {
-          // Create Recipe button pressed
-          _navigateToCreateRecipe();
-        } else if (index == 4 && _currentUserId != null) {
-          _navigateToProfile();
-        }
-      },
-      body: CustomScrollView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          TitleBar(
-            onProfileTap: _navigateToProfile,
+    return CustomScrollView(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        TitleBar(
+          onProfileTap: _navigateToProfile,
+        ),
+        // Divider
+        SliverToBoxAdapter(
+          child: const Divider(
+            height: 1,
+            thickness: 1,
+            color: Color(0xFFD3D3D3),
+            indent: 24,
+            endIndent: 24,
           ),
-          // Divider
-          SliverToBoxAdapter(
-            child: const Divider(
-              height: 1,
-              thickness: 1,
-              color: Color(0xFFD3D3D3),
-              indent: 24,
-              endIndent: 24,
-            ),
+        ),
+        
+        // Cook Now Block
+        SliverToBoxAdapter(
+          child: CookNowBlock(
+            onCookNowPressed: _navigateToCreateRecipe, // Use the navigation method
           ),
-          
-          // Cook Now Block
-          SliverToBoxAdapter(
-            child: CookNowBlock(
-              onCookNowPressed: _navigateToCreateRecipe, // Use the navigation method
-            ),
+        ),
+        
+        // Featured Recipe Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
+            child: HeaderText(text: 'Featured recipe'),
           ),
-          
-          // Featured Recipe Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
-              child: HeaderText(text: 'Featured recipe'),
-            ),
-          ),
-          
-          // Featured Recipe Block - Exact 20px from header
-          SliverToBoxAdapter(
-            child: _isLoadingFeatured
+        ),
+        
+        // Featured Recipe Block - Exact 20px from header
+        SliverToBoxAdapter(
+          child: _isLoadingFeatured
+            ? Padding(
+                padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _featuredRecipe == null
               ? Padding(
                   padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: Text('No featured recipe found.')),
                 )
-              : _featuredRecipe == null
-                ? Padding(
-                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                    child: Center(child: Text('No featured recipe found.')),
-                  )
-                : Padding(
-                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                    child: RecipeBlock(
-                      key: ValueKey('featured_${_featuredRecipe!.id}'),
-                      recipe: _featuredRecipe!
+              : Padding(
+                  padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
+                  child: RecipeBlock(
+                    key: ValueKey('featured_${_featuredRecipe!.id}'),
+                    recipe: _featuredRecipe!
+                  ),
+                ),
+        ),
+        
+        // Recipe Feed Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                HeaderText(text: 'Recipe feed'),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      NoAnimationPageRoute(
+                        builder: (context) => RecipeFeedScreen(),
+                      ),
+                    ).then((_) {
+                      // Refresh recipes when returning from feed
+                      _loadRecentRecipes();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF030303),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    minimumSize: const Size(85, 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    elevation: 2,
+                  ),
+                  child: const Text(
+                    'See more',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w700,
+                      height: 1.29,
                     ),
                   ),
+                ),
+              ],
+            ),
           ),
-          
-          // Recipe Feed Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  HeaderText(text: 'Recipe feed'),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        NoAnimationPageRoute(
-                          builder: (context) => RecipeFeedScreen(),
-                        ),
-                      ).then((_) {
-                        // Refresh recipes when returning from feed
-                        _loadRecentRecipes();
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF030303),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                      minimumSize: const Size(85, 32),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: const Text(
-                      'See more',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontFamily: 'Poppins',
-                        fontWeight: FontWeight.w700,
-                        height: 1.29,
-                      ),
-                    ),
-                  ),
-                ],
+        ),
+        
+        // Recipe Feed Preview - Exact 20px from header and 8px between items
+        _isLoadingRecent
+          ? SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
+                child: Center(child: CircularProgressIndicator()),
               ),
-            ),
-          ),
-          
-          // Recipe Feed Preview - Exact 20px from header and 8px between items
-          _isLoadingRecent
+            )
+          : _recentRecipes.isEmpty
             ? SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: Text('No recipes found.')),
                 ),
               )
-            : _recentRecipes.isEmpty
-              ? SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                    child: Center(child: Text('No recipes found.')),
-                  ),
-                )
-              : SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          top: index == 0 ? headerToContentSpacing : feedItemSpacing, 
-                          left: 24, 
-                          right: 24
-                        ),
-                        child: RecipeBlock(
-                          key: ValueKey('recipe_${_recentRecipes[index].id}'),
-                          recipe: _recentRecipes[index],
-                        ),
-                      );
-                    },
-                    childCount: _recentRecipes.length,
-                  ),
+            : SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        top: index == 0 ? headerToContentSpacing : feedItemSpacing, 
+                        left: 24, 
+                        right: 24
+                      ),
+                      child: RecipeBlock(
+                        key: ValueKey('recipe_${_recentRecipes[index].id}'),
+                        recipe: _recentRecipes[index],
+                      ),
+                    );
+                  },
+                  childCount: _recentRecipes.length,
                 ),
-          
-          // Top Chefs Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
-              child: HeaderText(text: 'Top chefs leaderboard'),
-            ),
+              ),
+        
+        // Top Chefs Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(top: sectionSpacing, left: 24, right: 24),
+            child: HeaderText(text: 'Top chefs leaderboard'),
           ),
-          
-          // Top Chefs Leaderboard - Exact 20px from header and reduced spacing between items
-          _isLoadingChefs
+        ),
+        
+        // Top Chefs Leaderboard - Exact 20px from header and reduced spacing between items
+        _isLoadingChefs
+          ? SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            )
+          : _topChefs.isEmpty
             ? SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: Text('No top chefs found.')),
                 ),
               )
-            : _topChefs.isEmpty
-              ? SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: headerToContentSpacing, left: 24, right: 24),
-                    child: Center(child: Text('No top chefs found.')),
-                  ),
-                )
-              : SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          top: index == 0 ? headerToContentSpacing : chefProfileSpacing, 
-                          left: 24, 
-                          right: 24
-                        ),
-                        child: Stack(
-                          children: [
-                            ProfileBlock(
-                              key: ValueKey('chef_${_topChefs[index].id}'),
-                              profile: _topChefs[index],
-                            ),
-                            // Rank Banner
-                            Positioned(
-                              top: 8,
-                              left: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '#${index + 1}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w700,
-                                  ),
+            : SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        top: index == 0 ? headerToContentSpacing : chefProfileSpacing, 
+                        left: 24, 
+                        right: 24
+                      ),
+                      child: Stack(
+                        children: [
+                          ProfileBlock(
+                            key: ValueKey('chef_${_topChefs[index].id}'),
+                            profile: _topChefs[index],
+                          ),
+                          // Rank Banner
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '#${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                    childCount: _topChefs.length,
-                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  childCount: _topChefs.length,
                 ),
-          
-          // Bottom Padding
-          SliverToBoxAdapter(
-            child: SizedBox(height: 24),
-          ),
-        ],
-      ),
+              ),
+        
+        // Bottom Padding
+        SliverToBoxAdapter(
+          child: SizedBox(height: 24),
+        ),
+      ],
     );
   }
 }
